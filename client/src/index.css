@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-brand: #E8BA00;
+  --color-brand-hover: #D4A800;
+  --color-brand-subtle: #FFF8DB;
+  --color-ink: #242424;
+  --color-text-secondary: #646464;
+  --color-page: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F7F6F2;
+  --color-border: #E6E3DA;
+  --color-success: #18794E;
+  --color-danger: #D9381E;
+}
+
+@layer base {
+  body {
+    color: var(--color-ink);
+    background-color: var(--color-surface-muted);
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+/* Accessible focus styling */
+*:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* Custom smooth transitions */
+.transition-smooth {
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
