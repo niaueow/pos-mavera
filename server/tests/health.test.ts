@@ -8,8 +8,9 @@ describe('Backend Foundation & Health Endpoints', () => {
 
   beforeAll(() => {
     process.env.NODE_ENV = 'test';
-    process.env.DATABASE_URL = 'postgresql://postgres:test@localhost:5432/pos_mavera?schema=public';
-    process.env.JWT_SECRET = 'test_jwt_secret_min_16_characters_long';
+    if (!process.env.JWT_SECRET) {
+      process.env.JWT_SECRET = 'test_jwt_secret_min_16_characters_long';
+    }
     app = createApp();
   });
 

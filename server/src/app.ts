@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { env } from './config/env';
 import { sendSuccess } from './utils/response';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
+import menuRouter from './routes/menu.routes';
 
 export function createApp(): Application {
   const app: Application = express();
@@ -35,6 +36,9 @@ export function createApp(): Application {
 
   app.get('/health', healthHandler);
   app.get('/api/v1/health', healthHandler);
+
+  // API Routes
+  app.use('/api/v1/menus', menuRouter);
 
   // 404 and Error handling
   app.use(notFoundHandler);
