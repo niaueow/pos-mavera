@@ -168,7 +168,7 @@ Based on [PRD.md](file:///c:/Users/ASUS/OneDrive/Documents/Projects/pos-mavera/d
 
 | # | Topic | Question / Ambiguity | Default Working Assumption | Stakeholder Action |
 |---|---|---|---|---|
-| Q-01 | **Spice Level Labels** | What are the exact customer-facing names for levels 1–5? |Level 0: Tidak Pedas, Level 1: Sedang, Level 2: Pedas Sedang, Level 3: Pedas, Level 4: Pedas Banget, Level 5: Extra Pedas. | Owner to confirm wording. |
+| Q-01 | **Spice Level Labels** | What are the exact customer-facing names for levels 0–5? | Level 0: Tidak Pedas, Level 1: Sedang, Level 2: Pedas Sedang, Level 3: Pedas, Level 4: Pedas Banget, Level 5: Extra Pedas. | Owner to confirm wording. |
 | Q-02 | **Customer Phone Requirement** | Is phone number mandatory or optional? | Mandatory. Used for customer identification during pickup/serving. | Owner to confirm. |
 | Q-03 | **Phase 1 Staff Account Setup** | How are kitchen operator accounts created? | Provisioned via a secure Prisma seed script (`server/prisma/seed.ts`) reading credentials from environment variables (`INITIAL_STAFF_EMAIL`, `INITIAL_STAFF_PASSWORD`). | Owner to validate setup workflow. |
 | Q-04 | **Midtrans Expiry Support** | Does merchant account support Snap `custom_expiry` 15 mins? | Yes, pass `custom_expiry: { expiry_duration: 15, unit: "minute" }` in Snap transaction payload. | Merchant dashboard check. |
@@ -571,7 +571,7 @@ All application endpoints are prefixed with `/api/v1`.
 - **Phase & Priority:** Phase 1 | P0 (Must Have)
 - **Dependencies:** T0-03, T1-01
 - **Deliverables:** `client/src/pages/MenuPage.tsx`, `client/src/components/MenuItemCard.tsx`, `client/src/components/ItemModal.tsx`, `client/src/hooks/useCart.ts`.
-- **Acceptance Criteria:** Responsive mobile-first menu grid; real-time search; modal to select quantity (1..99), spice level (1..5 for spicy items), and notes; cart state preserved in local storage.
+- **Acceptance Criteria:** Responsive mobile-first menu grid; real-time search; modal to select quantity (1..99), spice level (0..5 for spicy items), and notes; cart state preserved in local storage.
 - **Required Tests:** Component tests for spice selector visibility based on `hasSpiceLevel`.
 - **Blockers:** None.
 
@@ -741,7 +741,7 @@ All application endpoints are prefixed with `/api/v1`.
 
 ### 1. Unit Tests (Vitest)
 - **Price Calculation:** Subtotal calculation (`unitPrice * quantity`), order total sum, handling zero or negative quantities.
-- **Validation Logic:** Dine-in table bounds (`1 <= tableNumber <= 10`), takeaway table nullification, spice level validation (1..5 conditional on `hasSpiceLevel`).
+- **Validation Logic:** Dine-in table bounds (`1 <= tableNumber <= 10`), takeaway table nullification, spice level validation (0..5 conditional on `hasSpiceLevel`).
 - **State Machine Transitions:** Verify allowed transitions (`PENDING_PAYMENT` -> `RECEIVED` -> `PREPARING` -> `READY` -> `COMPLETED`) and rejection of invalid skips (e.g. `PENDING_PAYMENT` -> `PREPARING`).
 - **Signature Verification:** SHA-512 generation and comparison using test Midtrans parameters.
 

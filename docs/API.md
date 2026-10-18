@@ -233,9 +233,8 @@ All application endpoints below are relative to `/api/v1`.
 ### 5.1 Phase 1
 
 | Method | Endpoint | Access | Purpose |
-|---|---|---|---|
-| `GET` | `/menu` | Public | List available menus and support search |
-| `GET` | `/menu/:menu_id` | Public | Get menu details |
+| `GET` | `/menus` | Public | List available menus and support search |
+| `GET` | `/menus/:id` | Public | Get menu details |
 | `POST` | `/orders` | Public, rate-limited | Create a guest order |
 | `GET` | `/orders/:order_code` | Valid tracking token required | Read order status and safe order details |
 | `POST` | `/orders/:order_code/payment-attempts` | Valid order tracking capability required | Create/reuse an eligible payment attempt |
@@ -268,7 +267,7 @@ The Phase 2 endpoints are documented as planned endpoints; they are not required
 
 ## 6. Public Menu API
 
-### 6.1 `GET /menu`
+### 6.1 `GET /menus`
 
 Returns available, non-deleted menu items.
 
@@ -300,7 +299,7 @@ Example response:
 
 The URL above is illustrative only. Real menu image URLs must come from configured storage or persisted menu data.
 
-### 6.2 `GET /menu/:menu_id`
+### 6.2 `GET /menus/:id`
 
 Returns the details of one available, non-deleted menu item.
 
@@ -838,12 +837,12 @@ Required integrity properties:
 
 | ID | Scenario | Endpoint | Expected result |
 |---|---|---|---|
-| API-01 | Fetch public menu | `GET /menu` | `200`; only available, non-deleted menus |
-| API-02 | Fetch menu details | `GET /menu/:menu_id` | `200` for available menu |
+| API-01 | Fetch public menu | `GET /menus` | `200`; only available, non-deleted menus |
+| API-02 | Fetch menu details | `GET /menus/:id` | `200` for available menu |
 | API-03 | Create valid dine-in order | `POST /orders` | `201`; valid table number and server-calculated total |
 | API-04 | Create valid takeaway order | `POST /orders` | `201`; no table number |
 | API-05 | Submit table number outside 1–10 | `POST /orders` | `422`; no order created |
-| API-06 | Submit spice level outside 1–5 | `POST /orders` | `422`; no order created |
+| API-06 | Submit spice level outside 0–5 | `POST /orders` | `422`; no order created |
 | API-07 | Submit quantity zero or unavailable menu | `POST /orders` | `422`; no order created |
 | API-08 | Manipulate price/total in client request | `POST /orders` | Client-supplied price ignored or rejected; server total is authoritative |
 | API-09 | Retry order creation with same idempotency key | `POST /orders` | No duplicate order |
@@ -881,7 +880,7 @@ The following points must be checked against `PRD.md`, `TECHNICAL_DECISIONS.md`,
 8. **Order cancellation state:** Confirm whether `CANCELLED` is needed internally and which system/operator actions may set it. It must not imply a customer cancellation feature.
 9. **Owner reports:** Define report metrics and filters before Phase 2 implementation.
 10. **Idempotency mechanism:** Finalize the header/storage design for order and payment-attempt creation.
-11. **Route naming:** This document uses singular `/menu`; if the repository or agreed API convention uses plural `/menus`, settle on one convention before implementation and apply it consistently.
+11. **Route naming:** Standardized on RESTful plural `/menus` and `/menus/:id` across public and admin endpoints.
 12. **Database monetary type:** Confirm one consistent PostgreSQL/Prisma representation for IDR amounts.
 
 ---
