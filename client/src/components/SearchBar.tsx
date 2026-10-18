@@ -9,11 +9,11 @@ interface SearchBarProps {
   onSelectCategory: (category: MenuCategory) => void;
 }
 
-const CATEGORIES: { label: MenuCategory; emoji: string }[] = [
-  { label: 'Semua', emoji: '🍽️' },
-  { label: 'Ayam Geprek', emoji: '🍗' },
-  { label: 'Ala Carte', emoji: '🍳' },
-  { label: 'Minuman', emoji: '🥤' },
+const CATEGORIES: { label: MenuCategory }[] = [
+  { label: 'Semua' },
+  { label: 'Ayam Geprek' },
+  { label: 'Ala Carte' },
+  { label: 'Minuman' },
 ];
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -49,19 +49,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Category Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {CATEGORIES.map(({ label, emoji }) => {
+        {CATEGORIES.map(({ label }) => {
           const isActive = selectedCategory === label;
           return (
             <button
               key={label}
               onClick={() => onSelectCategory(label)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-smooth flex items-center gap-1.5 border ${
-                isActive
-                  ? 'bg-brand text-ink border-brand shadow-sm font-bold'
-                  : 'bg-surface text-ink-muted border-border hover:bg-surface-muted hover:text-ink'
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-smooth flex items-center gap-1.5 border ${isActive
+                ? 'bg-brand text-ink border-brand shadow-sm font-bold'
+                : 'bg-surface text-ink-muted border-border hover:bg-surface-muted hover:text-ink'
+                }`}
             >
-              <span>{emoji}</span>
               <span>{label}</span>
             </button>
           );

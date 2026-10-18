@@ -1,10 +1,13 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ShoppingBag, UtensilsCrossed } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { formatIDR } from '../utils/currency';
 
+
 export const Navbar: React.FC = () => {
-  const { totalCount, subtotalAmount, setIsCartOpen } = useCart();
+  const { totalCount, subtotalAmount } = useCart();
+
 
   return (
     <header className="sticky top-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border shadow-subtle">
@@ -22,9 +25,9 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Cart Trigger Button */}
-        <button
-          onClick={() => setIsCartOpen(true)}
+        {/* Cart button → navigates to /cart page */}
+        <Link
+          to="/cart"
           className="relative flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-brand hover:bg-brand-hover text-ink font-semibold transition-smooth active:scale-95 shadow-sm"
           aria-label={`Buka Keranjang (${totalCount} item)`}
         >
@@ -39,7 +42,7 @@ export const Navbar: React.FC = () => {
           <span className="hidden sm:inline text-sm font-bold">
             {totalCount > 0 ? formatIDR(subtotalAmount) : 'Keranjang'}
           </span>
-        </button>
+        </Link>
       </div>
     </header>
   );

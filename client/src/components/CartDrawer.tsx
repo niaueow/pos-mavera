@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, Flame, FileText, AlertCircle, ArrowLeft } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, FileText, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { formatIDR } from '../utils/currency';
 
@@ -105,7 +105,6 @@ export const CartDrawer: React.FC = () => {
                   <div className="flex flex-wrap gap-1.5 text-[11px] pt-1 border-t border-border/60">
                     {item.spiceLevel !== undefined && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-semibold">
-                        <Flame className="w-3 h-3 text-red-500 fill-red-500" />
                         <span>Level {item.spiceLevel}</span>
                       </span>
                     )}
@@ -178,7 +177,7 @@ export const CartDrawer: React.FC = () => {
               className="w-full py-3 px-4 rounded-xl bg-brand/40 text-ink/60 font-bold text-sm cursor-not-allowed border border-brand/30 flex items-center justify-center gap-2"
               title="Fitur Checkout & Pembayaran akan aktif pada Milestone 4 & 5"
             >
-              <span>Lanjut ke Checkout</span>
+              <span>Lanjut ke Pembayaran</span>
               <span className="text-[10px] font-normal uppercase px-1.5 py-0.5 bg-surface rounded text-ink-muted">
                 Fase 1B
               </span>

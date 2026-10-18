@@ -75,7 +75,7 @@ export const MenuPage: React.FC = () => {
         <div className="relative overflow-hidden bg-brand-subtle rounded-2xl border border-brand/20 p-4 sm:p-6 mb-6">
           <div className="max-w-xl">
             <span className="inline-block px-2.5 py-1 rounded-md bg-brand text-ink text-xs font-bold mb-2 shadow-xs">
-              🍗 Pilihan Juara Setiap Hari
+              Pilihan Juara Setiap Hari
             </span>
             <h2 className="text-lg sm:text-2xl font-extrabold text-ink leading-tight">
               Ayam Geprek Sambal Mantap, Gurih & Renyah
