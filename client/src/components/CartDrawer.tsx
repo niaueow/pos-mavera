@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Trash2, Plus, Minus, ShoppingBag, FileText, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { formatIDR } from '../utils/currency';
 
 export const CartDrawer: React.FC = () => {
+  const navigate = useNavigate();
   const {
     items,
     totalCount,
@@ -171,16 +173,17 @@ export const CartDrawer: React.FC = () => {
               </span>
             </div>
 
-            {/* Scope Notice: Checkout arrives in Milestone 4 */}
+            {/* Navigate to Checkout Page (/cart) */}
             <button
-              disabled
-              className="w-full py-3 px-4 rounded-xl bg-brand/40 text-ink/60 font-bold text-sm cursor-not-allowed border border-brand/30 flex items-center justify-center gap-2"
-              title="Fitur Checkout & Pembayaran akan aktif pada Milestone 4 & 5"
+              type="button"
+              onClick={() => {
+                setIsCartOpen(false);
+                navigate('/cart');
+              }}
+              className="w-full py-3 px-4 rounded-xl bg-brand hover:bg-brand-hover text-ink font-bold text-sm shadow-sm transition-smooth active:scale-98 flex items-center justify-center gap-2"
             >
-              <span>Lanjut ke Pembayaran</span>
-              <span className="text-[10px] font-normal uppercase px-1.5 py-0.5 bg-surface rounded text-ink-muted">
-                Fase 1B
-              </span>
+              <span>Lanjut ke Checkout</span>
+              <span className="text-base">→</span>
             </button>
           </div>
         )}
