@@ -6,6 +6,7 @@ import {
   buildCreateOrderPayload,
   createOrder,
 } from '../services/orderService';
+import { createPaymentAttempt } from '../services/paymentService';
 import * as apiClient from '../services/apiClient';
 import { CartItem } from '../types/cart';
 import { MenuItem } from '../types/menu';
@@ -199,5 +200,43 @@ describe('Milestone 4 — Customer Checkout Validation & API Integration', () =>
     expect(result.table_number).toBe(4);
     expect(result.total_amount).toBe(44000);
     expect(result.tracking_token).toHaveLength(64);
+  });
+
+  it('sends the returned tracking_token when creating a payment attempt', async () => {
+    const trackingToken = 'abc123def4567890abc123def4567890abc123def4567890abc123def4567890';
+    const paymentAttempt = {
+      paymentAttemptId: 10,
+      orderCode: 'MVR-8K2P7X',
+      gatewayOrderId: 'MVR-8K2P7X-1',
+      snapToken: 'snap-token',
+      snapRedirectUrl: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token',
+      expiresAt: new Date().toISOString(),
+    };
+
+    vi.mocked(apiClient.apiRequest).mockResolvedValueOnce({
+      success: true,
+      message: 'Payment attempt created',
+      data: paymentAttempt,
+    });
+
+    await expect(createPaymentAttempt('MVR-8K2P7X', trackingToken)).resolves.toEqual(
+      paymentAttempt
+    );
+    expect(apiClient.apiRequest).toHaveBeenCalledWith(
+      '/orders/MVR-8K2P7X/payment-attempts',
+      {
+        method: 'POST',
+        headers: {
+          'X-Order-Tracking-Token': trackingToken,
+        },
+      }
+    );
+  });
+
+  it('does not send a payment request when the tracking token is missing', async () => {
+    await expect(createPaymentAttempt('MVR-8K2P7X', '  ')).rejects.toMatchObject({
+      code: 'MISSING_TRACKING_TOKEN',
+    });
+    expect(apiClient.apiRequest).not.toHaveBeenCalled();
   });
 });

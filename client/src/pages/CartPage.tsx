@@ -131,7 +131,10 @@ export const CartPage: React.FC = () => {
 
       // Trigger Midtrans Snap payment attempt
       try {
-        const attempt = await createPaymentAttempt(createdOrder.order_code);
+        const attempt = await createPaymentAttempt(
+          createdOrder.order_code,
+          createdOrder.tracking_token
+        );
         await pay(attempt.snapToken, {
           onSuccess: () => {
             saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
@@ -181,10 +184,21 @@ export const CartPage: React.FC = () => {
 
   const handlePayPendingOrder = async () => {
     if (!pendingOrderInfo) return;
+    if (!pendingOrderInfo.orderCode || !pendingOrderInfo.trackingToken.trim()) {
+      setPaymentNotice({
+        type: 'error',
+        message: 'Token pelacakan pesanan tidak tersedia. Silakan buat pesanan kembali.',
+      });
+      return;
+    }
+
     setIsRetryingPayment(true);
     setPaymentNotice(null);
     try {
-      const attempt = await createPaymentAttempt(pendingOrderInfo.orderCode);
+      const attempt = await createPaymentAttempt(
+        pendingOrderInfo.orderCode,
+        pendingOrderInfo.trackingToken
+      );
       await pay(attempt.snapToken, {
         onSuccess: () => {
           saveTrackingToken(pendingOrderInfo.orderCode, pendingOrderInfo.trackingToken);

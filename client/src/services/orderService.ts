@@ -171,11 +171,16 @@ export async function trackOrder(
   orderCode: string,
   trackingToken: string
 ): Promise<TrackedOrderResponse> {
+  const cleanTrackingToken = trackingToken.trim();
+  if (!cleanTrackingToken) {
+    throw new Error('Token pelacakan pesanan tidak tersedia');
+  }
+
   const cleanOrderCode = encodeURIComponent(orderCode.trim());
   const response = await apiRequest<TrackedOrderResponse>(`/orders/${cleanOrderCode}`, {
     method: 'GET',
     headers: {
-      'X-Order-Tracking-Token': trackingToken.trim(),
+      'X-Order-Tracking-Token': cleanTrackingToken,
     },
   });
 
