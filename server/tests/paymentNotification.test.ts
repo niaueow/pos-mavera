@@ -193,6 +193,7 @@ describe('Milestone 2: Webhook Notifikasi Midtrans (POST /api/v1/payments/notifi
     expect(attemptInDb?.status).toBe(PaymentStatus.PAID);
     expect(attemptInDb?.transactionId).toBe('trans-pending-001');
     expect(attemptInDb?.paymentType).toBe('qris');
+    expect(attemptInDb?.gatewayTransactionStatus).toBe('settlement');
     expect(attemptInDb?.paidAt).not.toBeNull();
 
     // Verifikasi Order terupdate ke PAID dan RECEIVED

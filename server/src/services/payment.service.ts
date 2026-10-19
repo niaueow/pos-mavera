@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma';
 import { assertMidtransConfigured } from '../config/midtrans';
 import { AppError } from '../middlewares/errorHandler';
 import { verifyMidtransSignature } from '../utils/midtransSignature';
+import { env } from '../config/env';
 
 export interface MidtransNotificationPayload {
   order_id: string;
@@ -25,6 +26,16 @@ export interface ProcessNotificationResult {
   isIdempotent?: boolean;
 }
 
+function getDatabaseTargetIdentifier(): string {
+  try {
+    const databaseUrl = new URL(env.DATABASE_URL);
+    const databaseName = databaseUrl.pathname.replace(/^\//, '') || 'unknown';
+    return `${databaseUrl.hostname}:${databaseUrl.port || 'default'}/${databaseName}`;
+  } catch {
+    return 'unparseable-database-url';
+  }
+}
+
 export class PaymentService {
   /**
    * Process incoming Midtrans webhook notification.
@@ -39,6 +50,14 @@ export class PaymentService {
 
     const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status, transaction_id, payment_type } =
       payload;
+
+    console.info('[MidtransWebhook] received', {
+      environment: env.NODE_ENV,
+      isProduction: env.MIDTRANS_IS_PRODUCTION === true,
+      databaseTarget: getDatabaseTargetIdentifier(),
+      orderId: typeof order_id === 'string' ? order_id : 'invalid',
+      transactionStatus: typeof transaction_status === 'string' ? transaction_status : 'invalid',
+    });
 
     if (
       typeof order_id !== 'string' ||
@@ -59,22 +78,40 @@ export class PaymentService {
     });
 
     if (!isValidSignature) {
+      console.warn('[MidtransWebhook] signature rejected', {
+        orderId: order_id,
+      });
       throw new AppError(401, 'UNAUTHORIZED', 'Invalid Midtrans signature key');
     }
 
-    return await prisma.$transaction(async (tx) => {
+    console.info('[MidtransWebhook] signature accepted', {
+      orderId: order_id,
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
       const paymentAttempt = await tx.paymentAttempt.findUnique({
         where: { gatewayOrderId: order_id },
         include: { order: true },
       });
 
       if (!paymentAttempt) {
+        console.warn('[MidtransWebhook] payment attempt lookup missed', {
+          orderId: order_id,
+        });
         throw new AppError(
           404,
           'NOT_FOUND',
           `Payment attempt dengan order_id ${order_id} tidak ditemukan`
         );
       }
+
+      console.info('[MidtransWebhook] payment attempt lookup matched', {
+        orderId: order_id,
+        paymentAttemptId: paymentAttempt.id,
+        orderIdForeignKey: paymentAttempt.orderId,
+        orderFound: Boolean(paymentAttempt.order),
+        orderCode: paymentAttempt.order.orderCode,
+      });
 
       const notificationAmount = Number(gross_amount);
       if (!Number.isFinite(notificationAmount) || notificationAmount !== paymentAttempt.grossAmount) {
@@ -125,7 +162,13 @@ export class PaymentService {
         ? PaymentStatus.EXPIRED
         : PaymentStatus.FAILED;
 
-      await tx.paymentAttempt.update({
+      console.info('[MidtransWebhook] applying payment attempt update', {
+        orderId: order_id,
+        paymentAttemptId: paymentAttempt.id,
+        targetStatus,
+      });
+
+      const updatedPaymentAttempt = await tx.paymentAttempt.update({
         where: { id: paymentAttempt.id },
         data: {
           status: targetStatus,
@@ -137,8 +180,15 @@ export class PaymentService {
         },
       });
 
+      console.info('[MidtransWebhook] payment attempt update complete', {
+        orderId: order_id,
+        paymentAttemptId: updatedPaymentAttempt.id,
+        updatedCount: 1,
+        status: updatedPaymentAttempt.status,
+      });
+
       if (paid) {
-        await tx.order.update({
+        const updatedOrder = await tx.order.update({
           where: { id: paymentAttempt.order.id },
           data: {
             paymentStatus: PaymentStatus.PAID,
@@ -146,6 +196,14 @@ export class PaymentService {
               ? { orderStatus: OrderStatus.RECEIVED }
               : {}),
           },
+        });
+
+        console.info('[MidtransWebhook] order update complete', {
+          orderId: order_id,
+          orderIdForeignKey: updatedOrder.id,
+          updatedCount: 1,
+          paymentStatus: updatedOrder.paymentStatus,
+          orderStatus: updatedOrder.orderStatus,
         });
 
         if (paymentAttempt.order.orderStatus === OrderStatus.PENDING_PAYMENT) {
@@ -195,6 +253,15 @@ export class PaymentService {
         gatewayOrderId: order_id,
       };
     });
+
+    console.info('[MidtransWebhook] transaction committed', {
+      orderId: result.gatewayOrderId,
+      orderCode: result.orderCode,
+      message: result.message,
+      isIdempotent: result.isIdempotent === true,
+    });
+
+    return result;
   }
 }
 
