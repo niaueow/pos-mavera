@@ -176,7 +176,7 @@ describe('Milestone 2: Webhook Notifikasi Midtrans (POST /api/v1/payments/notifi
       signature_key: signature,
       transaction_status: 'settlement',
       payment_type: 'qris',
-      transaction_id: 'trans-settle-001',
+      transaction_id: 'trans-pending-001',
     };
 
     const res = await request(app)
@@ -191,7 +191,7 @@ describe('Milestone 2: Webhook Notifikasi Midtrans (POST /api/v1/payments/notifi
       where: { id: testPaymentAttemptId },
     });
     expect(attemptInDb?.status).toBe(PaymentStatus.PAID);
-    expect(attemptInDb?.transactionId).toBe('trans-settle-001');
+    expect(attemptInDb?.transactionId).toBe('trans-pending-001');
     expect(attemptInDb?.paymentType).toBe('qris');
     expect(attemptInDb?.paidAt).not.toBeNull();
 
@@ -227,7 +227,7 @@ describe('Milestone 2: Webhook Notifikasi Midtrans (POST /api/v1/payments/notifi
       signature_key: signature,
       transaction_status: 'settlement',
       payment_type: 'qris',
-      transaction_id: 'trans-settle-001',
+      transaction_id: 'trans-pending-001',
     };
 
     const res = await request(app)

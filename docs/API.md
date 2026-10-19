@@ -239,7 +239,7 @@ All application endpoints below are relative to `/api/v1`.
 | `GET` | `/orders/:order_code` | Valid tracking token required | Read order status and safe order details |
 | `POST` | `/orders/:order_code/payment-attempts` | Valid order tracking capability required | Create/reuse an eligible payment attempt |
 | `GET` | `/orders/:order_code/payment-status` | Valid tracking token required | Read safe payment status |
-| `POST` | `/payments/midtrans/notification` | Midtrans signature verification | Receive payment notifications |
+| `POST` | `/payments/notification` | Midtrans signature verification | Receive payment notifications |
 | `POST` | `/auth/login` | Public, rate-limited | Authenticate internal staff/admin |
 | `GET` | `/auth/me` | Authenticated staff/admin | Get current identity |
 | `PATCH` | `/internal/orders/:order_id/status` | Authenticated and authorized staff/admin | Advance order status |
@@ -513,7 +513,8 @@ Rules:
 - Target payment expiry is 15 minutes, subject to the capabilities/configuration of the merchant's Midtrans account.
 - Never expose `MIDTRANS_SERVER_KEY` to the frontend.
 - Store payment attempts separately, including unique gateway order ID, Snap token if needed, status, timestamps, and gateway references.
-- Handle timeouts safely: a failed API call does not prove that Midtrans failed to create the transaction. Reconcile before creating a duplicate attempt.
+- Handle timeouts safely: a failed API call leaves the reserved attempt unresolved and
+  must be reconciled before creating a duplicate attempt.
 
 Example response (`201 Created` for a newly created attempt, or `200 OK` for a safely reused attempt):
 
@@ -537,11 +538,17 @@ Potential errors:
 
 - `404 NOT_FOUND`: order not found or tracking capability invalid.
 - `409 ORDER_ALREADY_PAID`: order already paid.
-- `409 PAYMENT_ATTEMPT_IN_PROGRESS`: an active payment attempt already exists and cannot be safely reused.
+- `502 PAYMENT_GATEWAY_ERROR`: a previous gateway request is unresolved and must be reconciled before retrying.
 - `422 VALIDATION_ERROR`: order is not eligible for payment.
 - `502 PAYMENT_GATEWAY_ERROR`: gateway operation failed or could not be confirmed.
+- `503 PAYMENT_CONFIGURATION_ERROR`: Midtrans credentials are missing or invalid.
 
-### 8.2 `POST /payments/midtrans/notification`
+The response contains `paymentAttemptId`, `orderCode`, `gatewayOrderId`, `snapToken`,
+`snapRedirectUrl`, and `expiresAt`. The frontend passes `snapToken` to the Snap
+browser SDK. Browser callbacks are informational; only a verified server
+notification changes payment authorization.
+
+### 8.2 `POST /payments/notification`
 
 Receives server-to-server notifications from Midtrans. This endpoint is not authenticated using a user JWT. It must verify the notification according to the current official Midtrans documentation and the configured merchant environment.
 
@@ -571,6 +578,12 @@ Illustrative payload:
 ```
 
 Do not assume the illustrative payload is a complete Midtrans schema. Verify required fields and signature rules against the current official Midtrans documentation during implementation.
+
+For local development, Midtrans cannot deliver notifications to `localhost`. Start
+the backend on port 5000, expose it through an HTTPS tunnel (for example,
+`ngrok http 5000`), and configure the resulting URL plus
+`/api/v1/payments/notification` in the Midtrans Sandbox dashboard. Do not claim a
+webhook has been delivered until the server logs and database record confirm it.
 
 ### 8.3 Midtrans Status Mapping
 
@@ -848,7 +861,7 @@ Required integrity properties:
 | API-09 | Retry order creation with same idempotency key | `POST /orders` | No duplicate order |
 | API-10 | Create payment attempt for eligible order | `POST /orders/:order_code/payment-attempts` | Valid Snap token/URL and unique gateway order ID |
 | API-11 | Create concurrent payment attempts | Payment-attempt endpoint | No conflicting active attempts |
-| API-12 | Verified successful Midtrans notification | `POST /payments/midtrans/notification` | Payment `PAID`; order transitions to `RECEIVED` once |
+| API-12 | Verified successful Midtrans notification | `POST /payments/notification` | Payment `PAID`; order transitions to `RECEIVED` once |
 | API-13 | Invalid Midtrans signature | Webhook endpoint | `403`; no state mutation |
 | API-14 | Duplicate Midtrans notification | Webhook endpoint | Idempotent; no duplicate history entry |
 | API-15 | Notification amount/order ID mismatch | Webhook endpoint | Rejected or quarantined safely; no fulfillment authorization |

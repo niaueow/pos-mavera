@@ -225,7 +225,7 @@ graph TD
     
     UI_Guest -.->|"Opens Snap Modal"| SnapModal
     PaymentService -->|"Creates Transaction"| SnapModal
-    WebhookSender -->|"POST /payments/midtrans/notification"| Router
+    WebhookSender -->|"POST /payments/notification"| Router
 
     Router --> ZodValidator
     Router --> AuthMiddleware
@@ -424,7 +424,7 @@ All application endpoints are prefixed with `/api/v1`.
 | `GET` | `/orders/:orderCode` | `X-Order-Tracking-Token` | Track order status, items, timestamps, and safe details. |
 | `POST` | `/orders/:orderCode/payment-attempts` | `X-Order-Tracking-Token` | Create or reuse eligible Midtrans Snap transaction attempt. |
 | `GET` | `/orders/:orderCode/payment-status` | `X-Order-Tracking-Token` | Read order payment status. |
-| `POST` | `/payments/midtrans/notification` | Midtrans Signature | Webhook for payment status updates and reconciliation. |
+| `POST` | `/payments/notification` | Midtrans Signature | Webhook for payment status updates and reconciliation. |
 | `POST` | `/auth/login` | Public (Rate-limited) | Internal staff/admin authentication; returns JWT. |
 | `GET` | `/auth/me` | Bearer JWT | Returns authenticated staff/admin identity. |
 | `GET` | `/internal/orders` | Bearer JWT (`STAFF`, `ADMIN`) | List active orders awaiting preparation or completion. |
@@ -611,7 +611,7 @@ All application endpoints are prefixed with `/api/v1`.
 - **Phase & Priority:** Phase 1 | P0 (Must Have)
 - **Dependencies:** T1-05
 - **Deliverables:** `server/src/services/webhook.service.ts`, notification route handler.
-- **Acceptance Criteria:** `POST /api/v1/payments/midtrans/notification` verifies SHA-512 signature; processes idempotently; maps statuses (`settlement` -> `PAID`); transitions order to `RECEIVED`; writes status audit log transactionally.
+- **Acceptance Criteria:** `POST /api/v1/payments/notification` verifies SHA-512 signature; processes idempotently; maps statuses (`settlement` -> `PAID`); transitions an eligible order to `RECEIVED`; writes status audit log transactionally.
 - **Required Tests:** Test suite covering valid settlement, invalid signature (403), duplicate notifications, and out-of-order delivery.
 - **Blockers:** None.
 
@@ -766,7 +766,7 @@ All application endpoints are prefixed with `/api/v1`.
 | **Frontend Web App** | Vercel | Framework: Vite; Build command: `npm run build`; Output directory: `dist`. SPA redirect rewrite in `vercel.json`. |
 | **Backend API Service** | Render | Environment: Node; Build command: `npm install && npm run build`; Start command: `npm run start`. Pre-deploy command: `npx prisma migrate deploy`. |
 | **Database** | Render Managed PostgreSQL | PostgreSQL 15+, SSL required, connection pool enabled. |
-| **Payment Gateway** | Midtrans Sandbox / Production | Notification URL: `https://<backend-render-domain>/api/v1/payments/midtrans/notification`. |
+| **Payment Gateway** | Midtrans Sandbox / Production | Notification URL: `https://<backend-render-domain>/api/v1/payments/notification`. |
 
 ### Environment Variables Matrix
 

@@ -5,6 +5,7 @@ import { createApp } from '../src/app';
 import { prisma } from '../src/config/prisma';
 import { snap } from '../src/config/midtrans';
 import { OrderType, OrderStatus, PaymentStatus } from '@prisma/client';
+import crypto from 'crypto';
 
 describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempts', () => {
   let app: Application;
@@ -13,6 +14,8 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
   let unpaidOrderId: number;
   let paidOrderCode: string;
   let paidOrderId: number;
+  const unpaidTrackingToken = 'unpaid-payment-tracking-token';
+  const paidTrackingToken = 'paid-payment-tracking-token';
 
   const createdOrderIds: number[] = [];
   const tempMenuIds: number[] = [];
@@ -38,7 +41,7 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
     const unpaidOrder = await prisma.order.create({
       data: {
         orderCode: unpaidOrderCode,
-        trackingTokenHash: 'dummy-hash-unpaid-order-1234567890abcdef',
+        trackingTokenHash: crypto.createHash('sha256').update(unpaidTrackingToken).digest('hex'),
         customerName: 'Ahmad Dahlan',
         customerPhone: '081234567891',
         orderType: OrderType.DINE_IN,
@@ -69,7 +72,7 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
     const paidOrder = await prisma.order.create({
       data: {
         orderCode: paidOrderCode,
-        trackingTokenHash: 'dummy-hash-paid-order-1234567890abcdef',
+        trackingTokenHash: crypto.createHash('sha256').update(paidTrackingToken).digest('hex'),
         customerName: 'Siti Rahma',
         customerPhone: '081987654321',
         orderType: OrderType.TAKEAWAY,
@@ -123,19 +126,30 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
       .post('/api/v1/orders/MVR-NONEXISTENT/payment-attempts')
       .send();
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
-    expect(res.body.error.code).toBe('NOT_FOUND');
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
   it('should return 409 Conflict when order is already PAID', async () => {
     const res = await request(app)
       .post(`/api/v1/orders/${paidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', paidTrackingToken)
       .send();
 
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('CONFLICT');
+  });
+
+  it('should reject a payment request with an invalid tracking token', async () => {
+    const res = await request(app)
+      .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', 'wrong-token')
+      .send();
+
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
 
   it('should create a new payment attempt (201) with Midtrans Snap details and persist in database', async () => {
@@ -151,6 +165,7 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
 
     const res = await request(app)
       .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', unpaidTrackingToken)
       .send();
 
     expect(res.status).toBe(201);
@@ -192,6 +207,7 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
 
     const res = await request(app)
       .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', unpaidTrackingToken)
       .send();
 
     // Idempotency: HTTP 200 and return existing active token
@@ -212,6 +228,28 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
       where: { orderId: unpaidOrderId },
     });
     expect(attempts).toHaveLength(1);
+  });
+
+  it('should reject an inconsistent persisted total before calling Midtrans', async () => {
+    await prisma.order.update({
+      where: { id: unpaidOrderId },
+      data: { totalAmount: 50001 },
+    });
+
+    const createTransactionSpy = vi.spyOn(snap, 'createTransaction');
+    const res = await request(app)
+      .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', unpaidTrackingToken)
+      .send();
+
+    expect(res.status).toBe(500);
+    expect(res.body.error.code).toBe('DATA_INTEGRITY_ERROR');
+    expect(createTransactionSpy).not.toHaveBeenCalled();
+
+    await prisma.order.update({
+      where: { id: unpaidOrderId },
+      data: { totalAmount: 50000 },
+    });
   });
 
   it('should create attempt #2 (201) with gatewayOrderId `${orderCode}-2` if previous attempt is expired', async () => {
@@ -235,6 +273,7 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
 
     const res = await request(app)
       .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', unpaidTrackingToken)
       .send();
 
     expect(res.status).toBe(201);
@@ -273,6 +312,7 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
 
     const res = await request(app)
       .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', unpaidTrackingToken)
       .send();
 
     expect(res.status).toBe(502);

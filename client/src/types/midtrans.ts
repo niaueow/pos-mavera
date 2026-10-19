@@ -31,6 +31,7 @@ export interface MidtransSnapInstance {
 }
 
 export interface PaymentAttemptData {
+  paymentAttemptId: number;
   orderCode: string;
   gatewayOrderId: string;
   snapToken: string;

@@ -38,6 +38,14 @@ export function validateEnv(): Env {
     if (result.data.JWT_SECRET.includes('dev_jwt_secret')) {
       throw new Error('JWT_SECRET must be set to a secure random value in production');
     }
+    if (
+      result.data.MIDTRANS_SERVER_KEY.includes('REPLACE_WITH_YOUR_KEY') ||
+      result.data.MIDTRANS_SERVER_KEY.includes('placeholder') ||
+      result.data.MIDTRANS_CLIENT_KEY.includes('REPLACE_WITH_YOUR_KEY') ||
+      result.data.MIDTRANS_CLIENT_KEY.includes('placeholder')
+    ) {
+      throw new Error('MIDTRANS credentials must be configured in production');
+    }
   }
 
   return result.data;

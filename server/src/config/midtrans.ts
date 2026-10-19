@@ -12,4 +12,16 @@ export const snap = new midtransClient.Snap({
   clientKey: env.MIDTRANS_CLIENT_KEY,
 });
 
+export function assertMidtransConfigured(): void {
+  const isPlaceholder =
+    env.MIDTRANS_SERVER_KEY.includes('REPLACE_WITH_YOUR_KEY') ||
+    env.MIDTRANS_SERVER_KEY.includes('placeholder') ||
+    env.MIDTRANS_CLIENT_KEY.includes('REPLACE_WITH_YOUR_KEY') ||
+    env.MIDTRANS_CLIENT_KEY.includes('placeholder');
+
+  if (env.NODE_ENV !== 'test' && (isPlaceholder || env.MIDTRANS_SERVER_KEY.trim() === '' || env.MIDTRANS_CLIENT_KEY.trim() === '')) {
+    throw new Error('Midtrans payment configuration is missing or invalid');
+  }
+}
+
 export default snap;

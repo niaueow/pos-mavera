@@ -508,7 +508,7 @@ summary/payment status, and a secure tracking capability.
 `GET /orders/:orderCode` - Requires valid tracking capability. - Returns
 only the customer's order tracking information.
 
-`POST /orders/:orderCode/payment` - Requires order-scoped access. -
+`POST /orders/:orderCode/payment-attempts` - Requires order-scoped access. -
 Verifies order eligibility and persisted total. - Reuses an eligible
 pending attempt or creates a new unique attempt. - Prevents payment
 attempts for paid/closed orders. - Returns Snap token and expiration.

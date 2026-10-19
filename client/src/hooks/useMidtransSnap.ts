@@ -4,8 +4,7 @@ import { SnapCallbacks } from '../types/midtrans';
 
 const MIDTRANS_SNAP_SCRIPT_ID = 'midtrans-snap-script';
 const MIDTRANS_SNAP_URL = 'https://app.sandbox.midtrans.com/snap/snap.js';
-const DEFAULT_CLIENT_KEY =
-  import.meta.env.VITE_MIDTRANS_CLIENT_KEY || 'Mid-client-4AJ9TDvFKQWStFiy';
+const DEFAULT_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY || '';
 
 /**
  * Dynamically loads the Midtrans Snap sandbox script if not already present.
