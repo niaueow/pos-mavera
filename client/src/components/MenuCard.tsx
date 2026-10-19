@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Flame, Utensils } from 'lucide-react';
+import { Plus, Utensils } from 'lucide-react';
 import { MenuItem } from '../types/menu';
 import { formatIDR } from '../utils/currency';
 

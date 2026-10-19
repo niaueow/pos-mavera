@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, ShoppingBag, UtensilsCrossed } from 'lucide-react';
+import { ClipboardList, ShoppingBag } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { formatIDR } from '../utils/currency';
 import maveraLogo from "../assets/logomavera.jpg";
