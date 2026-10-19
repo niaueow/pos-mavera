@@ -45,3 +45,43 @@ export function loginRateLimiter(req: Request, res: Response, next: NextFunction
 
   next();
 }
+
+const orderAttempts = new Map<string, RateLimitRecord>();
+
+/**
+ * In-memory rate limiter for guest order creation (20 orders per minute per IP)
+ */
+export function orderCreationRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV === 'test') {
+    next();
+    return;
+  }
+
+  const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxAttempts = 20;
+
+  const record = orderAttempts.get(clientIp);
+
+  if (!record || now > record.resetTime) {
+    orderAttempts.set(clientIp, { count: 1, resetTime: now + windowMs });
+    next();
+    return;
+  }
+
+  record.count += 1;
+
+  if (record.count > maxAttempts) {
+    sendError(
+      res,
+      429,
+      'TOO_MANY_REQUESTS',
+      'Terlalu banyak permintaan pembuatan pesanan. Silakan tunggu beberapa saat lagi.'
+    );
+    return;
+  }
+
+  next();
+}
+
