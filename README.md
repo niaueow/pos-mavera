@@ -4,6 +4,10 @@ POS Mavera adalah aplikasi pemesanan makanan, pembayaran digital (Midtrans Snap)
 
 Repository ini dikembangkan secara kolaboratif menggunakan arsitektur monorepo dengan pemisahan folder frontend (`client/`) dan backend (`server/`).
 
+Anggota Kelompok:
+Sabira Putri Cahyani - 2310512048
+Shabrina Rahmania -2310512071
+Callysta Cendikia Diba Putri - 2310512079
 ---
 
 ## 1. Arsitektur & Teknologi

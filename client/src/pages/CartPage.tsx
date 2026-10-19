@@ -23,9 +23,9 @@ import {
   validateCheckoutForm,
   buildCreateOrderPayload,
   createOrder,
-  saveTrackingToken,
 } from '../services/orderService';
 import { createPaymentAttempt } from '../services/paymentService';
+import { getCustomerName, saveCustomerName } from '../services/customerSession';
 import { useMidtransSnap } from '../hooks/useMidtransSnap';
 import { ApiClientError } from '../services/apiClient';
 
@@ -36,7 +36,7 @@ export const CartPage: React.FC = () => {
 
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [tableNumber, setTableNumber] = useState<number | null>(null);
-  const [customerName, setCustomerName] = useState('');
+  const [customerName, setCustomerName] = useState(() => getCustomerName() ?? '');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
 
@@ -120,8 +120,6 @@ export const CartPage: React.FC = () => {
 
       const createdOrder = await createOrder(payload);
 
-      // Save trackingToken and orderCode to LocalStorage
-      saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
       setPendingOrderInfo({
         orderCode: createdOrder.order_code,
         trackingToken: createdOrder.tracking_token,
@@ -137,12 +135,10 @@ export const CartPage: React.FC = () => {
         );
         await pay(attempt.snapToken, {
           onSuccess: () => {
-            saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
-            navigate(`/tracking/${createdOrder.order_code}?status=success`);
+            navigate(`/tracking/${createdOrder.order_code}`);
           },
           onPending: () => {
-            saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
-            navigate(`/tracking/${createdOrder.order_code}?status=pending`);
+            navigate(`/tracking/${createdOrder.order_code}`);
           },
           onError: () => {
             setPaymentNotice({
@@ -184,7 +180,11 @@ export const CartPage: React.FC = () => {
 
   const handlePayPendingOrder = async () => {
     if (!pendingOrderInfo) return;
-    if (!pendingOrderInfo.orderCode || !pendingOrderInfo.trackingToken.trim()) {
+    if (
+      !pendingOrderInfo.orderCode ||
+      typeof pendingOrderInfo.trackingToken !== 'string' ||
+      !pendingOrderInfo.trackingToken.trim()
+    ) {
       setPaymentNotice({
         type: 'error',
         message: 'Token pelacakan pesanan tidak tersedia. Silakan buat pesanan kembali.',
@@ -201,12 +201,10 @@ export const CartPage: React.FC = () => {
       );
       await pay(attempt.snapToken, {
         onSuccess: () => {
-          saveTrackingToken(pendingOrderInfo.orderCode, pendingOrderInfo.trackingToken);
-          navigate(`/tracking/${pendingOrderInfo.orderCode}?status=success`);
+          navigate(`/tracking/${pendingOrderInfo.orderCode}`);
         },
         onPending: () => {
-          saveTrackingToken(pendingOrderInfo.orderCode, pendingOrderInfo.trackingToken);
-          navigate(`/tracking/${pendingOrderInfo.orderCode}?status=pending`);
+          navigate(`/tracking/${pendingOrderInfo.orderCode}`);
         },
         onError: () => {
           setPaymentNotice({
@@ -328,7 +326,7 @@ export const CartPage: React.FC = () => {
                 )}
               </button>
               <Link
-                to={`/tracking/${pendingOrderInfo.orderCode}?status=pending`}
+                to={`/tracking/${pendingOrderInfo.orderCode}`}
                 className="py-2.5 px-4 rounded-xl bg-surface border border-border text-ink text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-muted transition-smooth"
               >
                 <span>Lihat Status Pesanan</span>
@@ -486,30 +484,8 @@ export const CartPage: React.FC = () => {
                     <label htmlFor="table-number" className="block text-xs font-semibold text-ink">
                       Nomor Meja (1–10) <span className="text-danger">*</span>
                     </label>
-                    {tableNumber !== null && (
-                      <span className="text-xs font-bold text-amber-800 bg-brand-subtle px-2 py-0.5 rounded-md border border-brand/30">
-                        Meja {String(tableNumber).padStart(2, '0')} dipilih
-                      </span>
-                    )}
                   </div>
 
-                  {/* Dropdown Select for accessibility & quick selection */}
-                  <select
-                    id="table-number"
-                    value={tableNumber ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      handleTableNumberChange(val ? Number(val) : null);
-                    }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
-                  >
-                    <option value="">-- Pilih Nomor Meja (1–10) --</option>
-                    {VALID_TABLE_NUMBERS.map((num) => (
-                      <option key={num} value={num}>
-                        Meja {String(num).padStart(2, '0')}
-                      </option>
-                    ))}
-                  </select>
 
                   {/* Interactive Table Number Grid (1–10) */}
                   <div className="grid grid-cols-5 gap-2 pt-1">
@@ -559,7 +535,9 @@ export const CartPage: React.FC = () => {
                   type="text"
                   value={customerName}
                   onChange={(e) => {
-                    setCustomerName(e.target.value);
+                    const value = e.target.value;
+                    setCustomerName(value);
+                    saveCustomerName(value);
                     setFieldErrors((prev) => ({ ...prev, customerName: undefined }));
                   }}
                   placeholder="Contoh: Budi"

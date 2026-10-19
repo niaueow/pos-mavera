@@ -10,6 +10,14 @@ import {
 export const LAST_ORDER_STORAGE_KEY = 'pos_mavera_last_order_v1';
 export const VALID_TABLE_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
+export interface LatestOrderReference {
+  orderCode: string;
+  trackingToken: string;
+  savedAt: number;
+}
+
+let latestOrderFallback: LatestOrderReference | null = null;
+
 export interface CheckoutFormInput {
   customerName: string;
   phoneNumber: string;
@@ -123,43 +131,85 @@ export async function createOrder(
     body: JSON.stringify(payload),
   });
 
-  try {
-    sessionStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(response.data));
-    localStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(response.data));
-  } catch {
-    // Ignore storage quota errors
-  }
+  saveLatestOrderReference(response.data.order_code, response.data.tracking_token);
 
   return response.data;
 }
 
-export const TRACKING_TOKEN_STORAGE_PREFIX = 'pos_mavera_tracking_token_';
-
 /**
- * Saves tracking token and last order reference in localStorage.
+ * Saves only the current tab's latest order tracking reference.
  */
-export function saveTrackingToken(orderCode: string, trackingToken: string): void {
+export function saveLatestOrderReference(orderCode: string, trackingToken: string): void {
+  const cleanOrderCode = orderCode.trim();
+  const cleanTrackingToken = trackingToken.trim();
+  if (!cleanOrderCode || !cleanTrackingToken) return;
+
+  const reference: LatestOrderReference = {
+    orderCode: cleanOrderCode,
+    trackingToken: cleanTrackingToken,
+    savedAt: Date.now(),
+  };
+  latestOrderFallback = reference;
+
   try {
-    localStorage.setItem(`${TRACKING_TOKEN_STORAGE_PREFIX}${orderCode}`, trackingToken);
-    localStorage.setItem('pos_mavera_last_order_code', orderCode);
-    localStorage.setItem('pos_mavera_last_tracking_token', trackingToken);
+    sessionStorage.setItem(LAST_ORDER_STORAGE_KEY, JSON.stringify(reference));
   } catch {
-    // Ignore storage quota
+    // In-memory fallback remains available for this page session.
   }
 }
 
 /**
- * Retrieves stored tracking token for a given orderCode.
+ * Retrieves and validates the current tab's latest order tracking reference.
  */
-export function getStoredTrackingToken(orderCode?: string): string | null {
+export function getLatestOrderReference(): LatestOrderReference | null {
+  let raw: string | null = null;
   try {
-    if (orderCode) {
-      const specific = localStorage.getItem(`${TRACKING_TOKEN_STORAGE_PREFIX}${orderCode}`);
-      if (specific) return specific;
-    }
-    return localStorage.getItem('pos_mavera_last_tracking_token');
+    raw = sessionStorage.getItem(LAST_ORDER_STORAGE_KEY);
   } catch {
-    return null;
+    return latestOrderFallback;
+  }
+
+  if (!raw) return latestOrderFallback;
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      typeof (parsed as LatestOrderReference).orderCode === 'string' &&
+      (parsed as LatestOrderReference).orderCode.trim() !== '' &&
+      typeof (parsed as LatestOrderReference).trackingToken === 'string' &&
+      (parsed as LatestOrderReference).trackingToken.trim() !== '' &&
+      Number.isFinite((parsed as LatestOrderReference).savedAt) &&
+      (parsed as LatestOrderReference).savedAt > 0
+    ) {
+      const reference = {
+        orderCode: (parsed as LatestOrderReference).orderCode.trim(),
+        trackingToken: (parsed as LatestOrderReference).trackingToken.trim(),
+        savedAt: (parsed as LatestOrderReference).savedAt,
+      };
+      latestOrderFallback = reference;
+      return reference;
+    }
+  } catch {
+    // Remove malformed data below.
+  }
+
+  try {
+    sessionStorage.removeItem(LAST_ORDER_STORAGE_KEY);
+  } catch {
+    // Ignore unavailable storage.
+  }
+  latestOrderFallback = null;
+  return null;
+}
+
+export function clearLatestOrderReference(): void {
+  latestOrderFallback = null;
+  try {
+    sessionStorage.removeItem(LAST_ORDER_STORAGE_KEY);
+  } catch {
+    // Ignore unavailable storage.
   }
 }
 
@@ -171,7 +221,8 @@ export async function trackOrder(
   orderCode: string,
   trackingToken: string
 ): Promise<TrackedOrderResponse> {
-  const cleanTrackingToken = trackingToken.trim();
+  const cleanTrackingToken =
+    typeof trackingToken === 'string' ? trackingToken.trim() : '';
   if (!cleanTrackingToken) {
     throw new Error('Token pelacakan pesanan tidak tersedia');
   }

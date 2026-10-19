@@ -9,6 +9,7 @@ import { MenuPage } from './pages/MenuPage';
 import { CartPage } from './pages/CartPage';
 import { StaffLoginPage } from './pages/StaffLoginPage';
 import { StaffDashboardPage } from './pages/StaffDashboardPage';
+import { TrackingPage } from './pages/TrackingPage';
 
 export const App: React.FC = () => {
   return (
@@ -32,6 +33,8 @@ export const App: React.FC = () => {
                     <Routes>
                       <Route path="/" element={<MenuPage />} />
                       <Route path="/cart" element={<CartPage />} />
+                      <Route path="/tracking" element={<TrackingPage />} />
+                      <Route path="/tracking/:orderCode" element={<TrackingPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </main>

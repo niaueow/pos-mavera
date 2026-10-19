@@ -9,7 +9,8 @@ export async function createPaymentAttempt(
   orderCode: string,
   trackingToken: string
 ): Promise<PaymentAttemptData> {
-  const cleanTrackingToken = trackingToken.trim();
+  const cleanTrackingToken =
+    typeof trackingToken === 'string' ? trackingToken.trim() : '';
   if (!cleanTrackingToken) {
     throw new ApiClientError(
       0,

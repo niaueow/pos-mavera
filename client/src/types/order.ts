@@ -9,7 +9,7 @@ export type OrderStatus =
   | 'CANCELLED'
   | 'EXPIRED';
 
-export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'CANCELLED';
 
 export interface CreateOrderItemPayload {
   menu_id: number;

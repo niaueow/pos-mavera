@@ -71,20 +71,6 @@ export const MenuPage: React.FC = () => {
   return (
     <div className="pb-24 pt-4 sm:pt-6">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        {/* Banner Promo / Slogan */}
-        <div className="relative overflow-hidden bg-brand-subtle rounded-2xl border border-brand/20 p-4 sm:p-6 mb-6">
-          <div className="max-w-xl">
-            <span className="inline-block px-2.5 py-1 rounded-md bg-brand text-ink text-xs font-bold mb-2 shadow-xs">
-              Pilihan Juara Setiap Hari
-            </span>
-            <h2 className="text-lg sm:text-2xl font-extrabold text-ink leading-tight">
-              Ayam Geprek Sambal Mantap, Gurih & Renyah
-            </h2>
-            <p className="text-xs sm:text-sm text-ink-muted mt-1.5 leading-relaxed">
-              Pilih menu paket hemat, ala carte lezat, dan minuman segar langsung dari meja Anda.
-            </p>
-          </div>
-        </div>
 
         {/* Search Bar & Category Navigation */}
         <SearchBar

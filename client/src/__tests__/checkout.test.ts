@@ -5,6 +5,9 @@ import {
   validateCheckoutForm,
   buildCreateOrderPayload,
   createOrder,
+  clearLatestOrderReference,
+  getLatestOrderReference,
+  trackOrder,
 } from '../services/orderService';
 import { createPaymentAttempt } from '../services/paymentService';
 import * as apiClient from '../services/apiClient';
@@ -66,6 +69,7 @@ describe('Milestone 4 — Customer Checkout Validation & API Integration', () =>
 
   beforeEach(() => {
     vi.clearAllMocks();
+    clearLatestOrderReference();
   });
 
   it('provides valid table numbers from 1 to 10', () => {
@@ -200,6 +204,11 @@ describe('Milestone 4 — Customer Checkout Validation & API Integration', () =>
     expect(result.table_number).toBe(4);
     expect(result.total_amount).toBe(44000);
     expect(result.tracking_token).toHaveLength(64);
+
+    const latestOrder = getLatestOrderReference();
+    expect(latestOrder?.orderCode).toBe('MVR-8K2P7X');
+    expect(latestOrder?.trackingToken).toBe(mockOrderResponse.tracking_token);
+    expect(latestOrder?.savedAt).toEqual(expect.any(Number));
   });
 
   it('sends the returned tracking_token when creating a payment attempt', async () => {
@@ -238,5 +247,23 @@ describe('Milestone 4 — Customer Checkout Validation & API Integration', () =>
       code: 'MISSING_TRACKING_TOKEN',
     });
     expect(apiClient.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it('sends the tracking token when fetching the latest order status', async () => {
+    const trackingToken = 'tracking-token-for-status';
+    vi.mocked(apiClient.apiRequest).mockResolvedValueOnce({
+      success: true,
+      message: 'Status loaded',
+      data: {} as never,
+    });
+
+    await trackOrder('MVR-8K2P7X', trackingToken);
+
+    expect(apiClient.apiRequest).toHaveBeenCalledWith('/orders/MVR-8K2P7X', {
+      method: 'GET',
+      headers: {
+        'X-Order-Tracking-Token': trackingToken,
+      },
+    });
   });
 });
