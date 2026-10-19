@@ -4,6 +4,8 @@ import { validateBody } from '../middlewares/validate';
 import { orderCreationRateLimiter } from '../middlewares/rateLimiter';
 import { createOrderSchema } from '../validators/order.validator';
 
+import { paymentController } from '../controllers/payment.controller';
+
 const router = Router();
 
 /**
@@ -16,6 +18,16 @@ router.post(
   orderCreationRateLimiter,
   validateBody(createOrderSchema),
   (req, res, next) => orderController.createOrder(req, res, next)
+);
+
+/**
+ * @route   POST /api/v1/orders/:orderCode/payment-attempts
+ * @desc    Create or retrieve an active Midtrans Snap payment attempt
+ * @access  Public
+ */
+router.post(
+  '/:orderCode/payment-attempts',
+  (req, res, next) => paymentController.createPaymentAttempt(req, res, next)
 );
 
 export default router;

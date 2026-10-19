@@ -10,6 +10,7 @@ import authRouter from './routes/auth.routes';
 import internalRouter from './routes/internal.routes';
 import staffRouter from './routes/staff.routes';
 import orderRouter from './routes/order.routes';
+import paymentRouter from './routes/payment.routes';
 
 export function createApp(): Application {
   const app: Application = express();
@@ -47,6 +48,7 @@ export function createApp(): Application {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/internal', internalRouter);
   app.use('/api/v1/staff', staffRouter);
+  app.use('/api/v1', paymentRouter);
 
   // 404 and Error handling
   app.use(notFoundHandler);
