@@ -1,17 +1,20 @@
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingBag, ChevronRight } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { formatIDR } from '../utils/currency';
 
 export const MobileCartBar: React.FC = () => {
-  const { totalCount, subtotalAmount, setIsCartOpen } = useCart();
+  const { totalCount, subtotalAmount } = useCart();
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  if (totalCount === 0) return null;
+  if (totalCount === 0 || location.pathname === '/cart') return null;
 
   return (
     <div className="sm:hidden fixed bottom-4 inset-x-4 z-20">
       <button
-        onClick={() => setIsCartOpen(true)}
+        onClick={() => navigate('/cart')}
         className="w-full bg-brand text-ink rounded-xl p-3.5 shadow-elevated border border-brand-hover flex items-center justify-between font-bold active:scale-98 transition-transform"
         aria-label={`Buka Keranjang: ${totalCount} item, total ${formatIDR(subtotalAmount)}`}
       >
@@ -22,7 +25,7 @@ export const MobileCartBar: React.FC = () => {
               {totalCount}
             </span>
           </div>
-          <span className="text-sm font-bold text-ink">Lihat Keranjang</span>
+          <span className="text-sm font-bold text-ink">Lanjut ke Checkout</span>
         </div>
 
         <div className="flex items-center gap-1.5">
