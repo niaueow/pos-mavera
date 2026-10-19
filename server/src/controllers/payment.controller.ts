@@ -5,6 +5,8 @@ import { snap } from '../config/midtrans';
 import { sendSuccess } from '../utils/response';
 import { AppError } from '../middlewares/errorHandler';
 
+import { paymentService } from '../services/payment.service';
+
 export interface PaymentAttemptResponseData {
   orderCode: string;
   gatewayOrderId: string;
@@ -151,6 +153,18 @@ export class PaymentController {
         'Payment attempt berhasil dibuat',
         201
       );
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Handle webhook notification from Midtrans
+   */
+  async handleNotification(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await paymentService.processNotification(req.body);
+      sendSuccess(res, result, result.message, 200);
     } catch (error) {
       next(error);
     }

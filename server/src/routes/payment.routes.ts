@@ -12,4 +12,17 @@ router.post('/orders/:orderCode/payment-attempts', (req, res, next) => {
   paymentController.createPaymentAttempt(req, res, next);
 });
 
+/**
+ * @route   POST /api/v1/payments/notification
+ * @desc    Receive webhook notifications from Midtrans
+ * @access  Public (Called by Midtrans backend / ngrok webhook)
+ */
+router.post('/payments/notification', (req, res, next) => {
+  paymentController.handleNotification(req, res, next);
+});
+
+router.post('/payment/notification', (req, res, next) => {
+  paymentController.handleNotification(req, res, next);
+});
+
 export default router;
