@@ -4,6 +4,7 @@ import {
   CreateOrderPayload,
   CreateOrderResponse,
   OrderType,
+  TrackedOrderResponse,
 } from '../types/order';
 
 export const LAST_ORDER_STORAGE_KEY = 'pos_mavera_last_order_v1';
@@ -128,6 +129,55 @@ export async function createOrder(
   } catch {
     // Ignore storage quota errors
   }
+
+  return response.data;
+}
+
+export const TRACKING_TOKEN_STORAGE_PREFIX = 'pos_mavera_tracking_token_';
+
+/**
+ * Saves tracking token and last order reference in localStorage.
+ */
+export function saveTrackingToken(orderCode: string, trackingToken: string): void {
+  try {
+    localStorage.setItem(`${TRACKING_TOKEN_STORAGE_PREFIX}${orderCode}`, trackingToken);
+    localStorage.setItem('pos_mavera_last_order_code', orderCode);
+    localStorage.setItem('pos_mavera_last_tracking_token', trackingToken);
+  } catch {
+    // Ignore storage quota
+  }
+}
+
+/**
+ * Retrieves stored tracking token for a given orderCode.
+ */
+export function getStoredTrackingToken(orderCode?: string): string | null {
+  try {
+    if (orderCode) {
+      const specific = localStorage.getItem(`${TRACKING_TOKEN_STORAGE_PREFIX}${orderCode}`);
+      if (specific) return specific;
+    }
+    return localStorage.getItem('pos_mavera_last_tracking_token');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Calls GET /api/v1/orders/:orderCode with X-Order-Tracking-Token header
+ * to fetch real-time order status and details.
+ */
+export async function trackOrder(
+  orderCode: string,
+  trackingToken: string
+): Promise<TrackedOrderResponse> {
+  const cleanOrderCode = encodeURIComponent(orderCode.trim());
+  const response = await apiRequest<TrackedOrderResponse>(`/orders/${cleanOrderCode}`, {
+    method: 'GET',
+    headers: {
+      'X-Order-Tracking-Token': trackingToken.trim(),
+    },
+  });
 
   return response.data;
 }

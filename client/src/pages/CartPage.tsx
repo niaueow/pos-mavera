@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Trash2,
@@ -9,6 +9,10 @@ import {
   UtensilsCrossed,
   ShoppingBag,
   AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  ExternalLink,
   Loader2,
 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
@@ -19,10 +23,15 @@ import {
   validateCheckoutForm,
   buildCreateOrderPayload,
   createOrder,
+  saveTrackingToken,
 } from '../services/orderService';
+import { createPaymentAttempt } from '../services/paymentService';
+import { useMidtransSnap } from '../hooks/useMidtransSnap';
 import { ApiClientError } from '../services/apiClient';
 
 export const CartPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { pay } = useMidtransSnap();
   const { items, subtotalAmount, updateQuantity, removeItem, clearCart } = useCart();
 
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
@@ -32,7 +41,18 @@ export const CartPage: React.FC = () => {
   const [orderNotes, setOrderNotes] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRetryingPayment, setIsRetryingPayment] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<{
+    type: 'warning' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+  const [pendingOrderInfo, setPendingOrderInfo] = useState<{
+    orderCode: string;
+    trackingToken: string;
+    totalAmount?: number;
+  } | null>(null);
+
   const [fieldErrors, setFieldErrors] = useState<{
     customerName?: string;
     phoneNumber?: string;
@@ -85,6 +105,7 @@ export const CartPage: React.FC = () => {
     }
 
     setFieldErrors({});
+    setPaymentNotice(null);
     setIsSubmitting(true);
 
     try {
@@ -97,8 +118,52 @@ export const CartPage: React.FC = () => {
         items,
       });
 
-      await createOrder(payload);
+      const createdOrder = await createOrder(payload);
+
+      // Save trackingToken and orderCode to LocalStorage
+      saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
+      setPendingOrderInfo({
+        orderCode: createdOrder.order_code,
+        trackingToken: createdOrder.tracking_token,
+        totalAmount: createdOrder.total_amount,
+      });
       clearCart();
+
+      // Trigger Midtrans Snap payment attempt
+      try {
+        const attempt = await createPaymentAttempt(createdOrder.order_code);
+        await pay(attempt.snapToken, {
+          onSuccess: () => {
+            saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
+            navigate(`/tracking/${createdOrder.order_code}?status=success`);
+          },
+          onPending: () => {
+            saveTrackingToken(createdOrder.order_code, createdOrder.tracking_token);
+            navigate(`/tracking/${createdOrder.order_code}?status=pending`);
+          },
+          onError: () => {
+            setPaymentNotice({
+              type: 'error',
+              message:
+                'Pembayaran belum berhasil diselesaikan. Anda dapat mencoba bayar kembali atau memeriksa status pesanan.',
+            });
+          },
+          onClose: () => {
+            setPaymentNotice({
+              type: 'warning',
+              message:
+                'Jendela pembayaran ditutup sebelum transaksi selesai. Pesanan Anda tersimpan dan menunggu pembayaran.',
+            });
+          },
+        });
+      } catch (payErr: any) {
+        setPaymentNotice({
+          type: 'error',
+          message:
+            payErr?.message ||
+            'Gagal membuka formulir pembayaran Midtrans. Silakan lanjutkan pembayaran dari halaman pelacakan pesanan.',
+        });
+      }
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.details && err.details.length > 0) {
@@ -111,6 +176,44 @@ export const CartPage: React.FC = () => {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handlePayPendingOrder = async () => {
+    if (!pendingOrderInfo) return;
+    setIsRetryingPayment(true);
+    setPaymentNotice(null);
+    try {
+      const attempt = await createPaymentAttempt(pendingOrderInfo.orderCode);
+      await pay(attempt.snapToken, {
+        onSuccess: () => {
+          saveTrackingToken(pendingOrderInfo.orderCode, pendingOrderInfo.trackingToken);
+          navigate(`/tracking/${pendingOrderInfo.orderCode}?status=success`);
+        },
+        onPending: () => {
+          saveTrackingToken(pendingOrderInfo.orderCode, pendingOrderInfo.trackingToken);
+          navigate(`/tracking/${pendingOrderInfo.orderCode}?status=pending`);
+        },
+        onError: () => {
+          setPaymentNotice({
+            type: 'error',
+            message: 'Pembayaran belum berhasil diselesaikan. Silakan coba kembali.',
+          });
+        },
+        onClose: () => {
+          setPaymentNotice({
+            type: 'warning',
+            message: 'Jendela pembayaran ditutup sebelum transaksi selesai.',
+          });
+        },
+      });
+    } catch (err: any) {
+      setPaymentNotice({
+        type: 'error',
+        message: err?.message || 'Gagal memulai ulang pembayaran. Silakan cek status pesanan.',
+      });
+    } finally {
+      setIsRetryingPayment(false);
     }
   };
 
@@ -138,6 +241,85 @@ export const CartPage: React.FC = () => {
             <div className="flex-1">
               <p className="font-bold">Gagal Membuat Pesanan</p>
               <p className="mt-0.5">{submitError}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Notice Banner */}
+        {paymentNotice && (
+          <div
+            role="alert"
+            className={`flex items-start gap-2.5 p-3.5 rounded-2xl border text-xs font-medium ${
+              paymentNotice.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : paymentNotice.type === 'warning'
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-blue-50 border-blue-200 text-blue-700'
+            }`}
+          >
+            {paymentNotice.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+            ) : paymentNotice.type === 'warning' ? (
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
+            )}
+            <div className="flex-1">
+              <p className="font-bold">
+                {paymentNotice.type === 'error'
+                  ? 'Perhatian Pembayaran'
+                  : paymentNotice.type === 'warning'
+                  ? 'Pembayaran Ditunda'
+                  : 'Info Pembayaran'}
+              </p>
+              <p className="mt-0.5 leading-relaxed">{paymentNotice.message}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Order Quick Action (if popup was closed or order waiting) */}
+        {pendingOrderInfo && (
+          <div className="bg-brand-subtle/70 rounded-2xl border border-brand/50 p-4 space-y-3 shadow-subtle">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-xs font-bold text-ink">
+                  Pesanan Aktif: #{pendingOrderInfo.orderCode}
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-amber-800 bg-brand/30 px-2 py-0.5 rounded-md border border-brand/40">
+                Menunggu Pembayaran
+              </span>
+            </div>
+            <p className="text-xs text-ink-muted">
+              Pesanan Anda telah dicatat. Klik <strong>Bayar Sekarang</strong> untuk menyelesaikan via Midtrans Snap, atau cek status pesanan.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handlePayPendingOrder}
+                disabled={isRetryingPayment}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-ink text-surface text-xs font-bold flex items-center justify-center gap-2 hover:bg-ink/90 active:scale-98 transition-smooth disabled:opacity-50"
+              >
+                {isRetryingPayment ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Membuka Midtrans...</span>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Bayar Sekarang via Midtrans</span>
+                  </>
+                )}
+              </button>
+              <Link
+                to={`/tracking/${pendingOrderInfo.orderCode}?status=pending`}
+                className="py-2.5 px-4 rounded-xl bg-surface border border-border text-ink text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-muted transition-smooth"
+              >
+                <span>Lihat Status Pesanan</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
             </div>
           </div>
         )}
@@ -462,11 +644,12 @@ export const CartPage: React.FC = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses Pesanan...</span>
+                  <span>Menyiapkan Pembayaran...</span>
                 </>
               ) : (
                 <>
-                  <span>Lanjut ke Pembayaran</span>
+                  <CreditCard className="w-4 h-4" />
+                  <span>Bayar Sekarang</span>
                   {validation.isValid && <span className="text-base">→</span>}
                 </>
               )}

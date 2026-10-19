@@ -57,3 +57,40 @@ export interface CreateOrderResponse {
   created_at: string;
   updated_at: string;
 }
+
+export interface TrackedOrderItem {
+  id: number;
+  menuId: number;
+  menuName: string;
+  unitPrice: number;
+  quantity: number;
+  spiceLevel: number | null;
+  notes: string | null;
+  subtotal: number;
+}
+
+export interface TrackedOrderResponse {
+  id: number;
+  orderCode: string;
+  order_code?: string;
+  customerName: string;
+  customer_name?: string;
+  orderType: OrderType;
+  order_type?: OrderType;
+  tableNumber: number | null;
+  table_number?: number | null;
+  totalPrice: number;
+  totalAmount: number;
+  total_amount?: number;
+  paymentStatus: PaymentStatus;
+  payment_status?: PaymentStatus;
+  orderStatus: OrderStatus;
+  order_status?: OrderStatus;
+  status: string;
+  display_status?: string;
+  items: TrackedOrderItem[];
+  createdAt: string;
+  created_at?: string;
+  updatedAt: string;
+  updated_at?: string;
+}
