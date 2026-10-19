@@ -5,6 +5,7 @@ import { orderCreationRateLimiter } from '../middlewares/rateLimiter';
 import { createOrderSchema } from '../validators/order.validator';
 
 import { paymentController } from '../controllers/payment.controller';
+import { requireTrackingToken } from '../middlewares/trackingAuth';
 
 const router = Router();
 
@@ -18,6 +19,17 @@ router.post(
   orderCreationRateLimiter,
   validateBody(createOrderSchema),
   (req, res, next) => orderController.createOrder(req, res, next)
+);
+
+/**
+ * @route   GET /api/v1/orders/:orderCode
+ * @desc    Track guest order status protected by X-Order-Tracking-Token header
+ * @access  Public (Protected by X-Order-Tracking-Token)
+ */
+router.get(
+  '/:orderCode',
+  requireTrackingToken,
+  (req, res, next) => orderController.trackOrder(req, res, next)
 );
 
 /**

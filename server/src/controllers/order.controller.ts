@@ -14,6 +14,26 @@ export class OrderController {
       next(error);
     }
   }
+
+  async trackOrder(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const orderCode = Array.isArray(req.params.orderCode) ? req.params.orderCode[0] : req.params.orderCode;
+      const rawHeader = req.headers['x-order-tracking-token'];
+      const trackingToken: string =
+        typeof req.trackingToken === 'string'
+          ? req.trackingToken
+          : Array.isArray(rawHeader)
+          ? (rawHeader[0] ?? '')
+          : typeof rawHeader === 'string'
+          ? rawHeader
+          : '';
+      const result = await orderService.trackOrder(orderCode, trackingToken);
+
+      sendSuccess(res, result, 'Data pelacakan pesanan berhasil diambil', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const orderController = new OrderController();

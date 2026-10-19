@@ -236,6 +236,96 @@ export class OrderService {
       updated_at: createdOrder.updatedAt.toISOString(),
     };
   }
+
+  /**
+   * Track order by orderCode verified by customer's tracking token.
+   * Throws 404 if order does not exist.
+   * Throws 401 if tracking token is invalid.
+   */
+  async trackOrder(orderCode: string, trackingToken: string) {
+    if (!orderCode || typeof orderCode !== 'string' || orderCode.trim() === '') {
+      throw new AppError(400, 'BAD_REQUEST', 'Parameter orderCode diperlukan');
+    }
+
+    const trimmedOrderCode = orderCode.trim();
+
+    const order = await prisma.order.findUnique({
+      where: { orderCode: trimmedOrderCode },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!order) {
+      throw new AppError(404, 'NOT_FOUND', `Pesanan dengan kode ${trimmedOrderCode} tidak ditemukan`);
+    }
+
+    // Verifikasi tracking token via timing-safe comparison
+    const hashedToken = crypto.createHash('sha256').update(trackingToken.trim()).digest('hex');
+    const isHashMatch =
+      hashedToken.length === order.trackingTokenHash.length &&
+      crypto.timingSafeEqual(Buffer.from(hashedToken), Buffer.from(order.trackingTokenHash));
+    const isDirectMatch =
+      trackingToken.trim().length === order.trackingTokenHash.length &&
+      crypto.timingSafeEqual(Buffer.from(trackingToken.trim()), Buffer.from(order.trackingTokenHash));
+
+    if (!isHashMatch && !isDirectMatch) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Token pelacakan tidak valid');
+    }
+
+    return {
+      id: order.id,
+      orderCode: order.orderCode,
+      order_code: order.orderCode,
+      customerName: order.customerName,
+      customer_name: order.customerName,
+      orderType: order.orderType,
+      order_type: order.orderType,
+      tableNumber: order.tableNumber,
+      table_number: order.tableNumber,
+      totalPrice: order.totalAmount,
+      totalAmount: order.totalAmount,
+      total_amount: order.totalAmount,
+      paymentStatus: order.paymentStatus,
+      payment_status: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      order_status: order.orderStatus,
+      status: mapOrderStatusToDisplay(order.orderStatus),
+      display_status: mapOrderStatusToDisplay(order.orderStatus),
+      items: order.items.map((item) => ({
+        id: item.id,
+        menuId: item.menuId,
+        menuName: item.menuName,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+        spiceLevel: item.spiceLevel,
+        notes: item.notes,
+        subtotal: item.subtotal,
+      })),
+      createdAt: order.createdAt.toISOString(),
+      created_at: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      updated_at: order.updatedAt.toISOString(),
+    };
+  }
+}
+
+export function mapOrderStatusToDisplay(status: OrderStatus): string {
+  switch (status) {
+    case OrderStatus.PENDING_PAYMENT:
+      return 'MENUNGGU_PEMBAYARAN';
+    case OrderStatus.RECEIVED:
+      return 'DITERIMA';
+    case OrderStatus.PREPARING:
+    case OrderStatus.READY:
+      return 'DIPROSES';
+    case OrderStatus.COMPLETED:
+      return 'SELESAI';
+    case OrderStatus.CANCELLED:
+      return 'DIBATALKAN';
+    default:
+      return status;
+  }
 }
 
 export const orderService = new OrderService();
