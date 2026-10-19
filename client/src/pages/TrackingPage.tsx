@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, Clock3, Loader2 } from 'lucide-react';
 import { ApiClientError } from '../services/apiClient';
 import { getLatestOrderReference, trackOrder } from '../services/orderService';
+import { createPaymentAttempt } from '../services/paymentService';
+import { useMidtransSnap } from '../hooks/useMidtransSnap';
 import { PaymentStatus, TrackedOrderResponse, OrderStatus } from '../types/order';
 import { formatIDR } from '../utils/currency';
 
@@ -16,6 +18,17 @@ function isTerminalOrder(status: OrderStatus, paymentStatus: PaymentStatus): boo
     paymentStatus === 'EXPIRED' ||
     paymentStatus === 'CANCELLED'
   );
+}
+
+export function isPaymentAttemptEligible(order: Pick<TrackedOrderResponse, 'orderStatus' | 'paymentStatus'>): boolean {
+  return order.paymentStatus !== 'PAID' && order.orderStatus === 'PENDING_PAYMENT';
+}
+
+export function canStartPaymentAttempt(
+  order: Pick<TrackedOrderResponse, 'orderStatus' | 'paymentStatus'>,
+  paymentInFlight: boolean
+): boolean {
+  return !paymentInFlight && isPaymentAttemptEligible(order);
 }
 
 function paymentLabel(status: PaymentStatus): string {
@@ -35,10 +48,14 @@ function paymentLabel(status: PaymentStatus): string {
 
 export const TrackingPage: React.FC = () => {
   const { orderCode: routeOrderCode } = useParams<{ orderCode: string }>();
+  const { pay } = useMidtransSnap();
   const [order, setOrder] = useState<TrackedOrderResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
   const requestInFlight = useRef(false);
+  const paymentInFlight = useRef(false);
 
   const loadOrder = useCallback(async () => {
     if (requestInFlight.current) return;
@@ -77,6 +94,55 @@ export const TrackingPage: React.FC = () => {
       requestInFlight.current = false;
     }
   }, [routeOrderCode]);
+
+  const handlePayNow = useCallback(async () => {
+    if (!order || !canStartPaymentAttempt(order, paymentInFlight.current)) return;
+
+    const reference = getLatestOrderReference();
+    if (!reference || reference.orderCode !== order.orderCode) {
+      setPaymentError('Token pelacakan pesanan tidak tersedia. Silakan buka pesanan terakhir di tab ini.');
+      return;
+    }
+
+    paymentInFlight.current = true;
+    setIsPaying(true);
+    setPaymentError(null);
+    try {
+      const attempt = await createPaymentAttempt(reference.orderCode, reference.trackingToken);
+      await new Promise<void>((resolve, reject) => {
+        const refreshAndFinish = () => {
+          void loadOrder().finally(resolve);
+        };
+
+        void pay(attempt.snapToken, {
+          onSuccess: refreshAndFinish,
+          onPending: refreshAndFinish,
+          onError: () => {
+            void loadOrder().finally(() => {
+              setPaymentError('Pembayaran belum berhasil. Silakan coba lagi atau tunggu status diperbarui.');
+              resolve();
+            });
+          },
+          onClose: () => {
+            void loadOrder().finally(() => {
+              setPaymentError('Jendela pembayaran ditutup. Pesanan tetap menunggu pembayaran.');
+              resolve();
+            });
+          },
+        }).catch(reject);
+      });
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setPaymentError(err.message);
+      } else {
+        setPaymentError('Gagal membuka pembayaran. Silakan coba lagi.');
+      }
+      void loadOrder();
+    } finally {
+      paymentInFlight.current = false;
+      setIsPaying(false);
+    }
+  }, [loadOrder, order, pay]);
 
   useEffect(() => {
     void loadOrder();
@@ -134,6 +200,20 @@ export const TrackingPage: React.FC = () => {
           <p className="mt-1 text-base font-bold text-ink">{paymentLabel(order.paymentStatus)}</p>
           <p className="mt-1 text-sm text-ink-muted">{order.status}</p>
         </div>
+
+        {isPaymentAttemptEligible(order) && (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => void handlePayNow()}
+              disabled={isPaying}
+              className="w-full rounded-xl bg-brand px-4 py-3 text-sm font-extrabold text-ink transition-smooth hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isPaying ? 'Membuka pembayaran...' : 'Bayar Sekarang'}
+            </button>
+            {paymentError && <p className="text-xs text-danger">{paymentError}</p>}
+          </div>
+        )}
 
         <div className="flex items-center gap-2 text-sm font-semibold text-ink">
           <Clock3 className="w-4 h-4 text-amber-600" />
