@@ -6,9 +6,9 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 
-// Load environment variables
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+// Load server/.env first, then allow the monorepo root .env as a fallback.
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const prisma = new PrismaClient();
 
@@ -324,4 +324,3 @@ seed()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

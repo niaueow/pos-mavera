@@ -623,6 +623,16 @@ Backend secrets must be configured in Render environment settings (or a local ig
 
 Never prefix server secrets with `VITE_`, since Vite variables prefixed with `VITE_` are exposed to frontend code. Do not commit `.env` files or real credentials.
 
+At backend startup, a safe Midtrans configuration diagnostic reports only the
+Sandbox/Production mode, configuration source, key prefixes, and key lengths.
+Validation checks that both keys are present and are not placeholders; it does
+not reject a key solely because its prefix differs from a documented example.
+The keys must still belong to the selected environment and merchant account.
+A 401 from Snap requires manual verification in the Midtrans dashboard that the
+keys belong to the same merchant account and environment, that the account is
+active, and that the API/Snap service is enabled. Do not copy keys between
+Sandbox and Production or add encoding around keys.
+
 ---
 
 ## 9. Authentication and Internal Operations

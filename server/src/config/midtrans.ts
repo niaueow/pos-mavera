@@ -1,5 +1,5 @@
 import midtransClient from 'midtrans-client';
-import { env } from './env';
+import { env, getMidtransConfigDiagnostics } from './env';
 
 /**
  * Midtrans Snap Client initialization
@@ -13,15 +13,32 @@ export const snap = new midtransClient.Snap({
 });
 
 export function assertMidtransConfigured(): void {
+  const diagnostics = getMidtransConfigDiagnostics();
   const isPlaceholder =
     env.MIDTRANS_SERVER_KEY.includes('REPLACE_WITH_YOUR_KEY') ||
     env.MIDTRANS_SERVER_KEY.includes('placeholder') ||
     env.MIDTRANS_CLIENT_KEY.includes('REPLACE_WITH_YOUR_KEY') ||
     env.MIDTRANS_CLIENT_KEY.includes('placeholder');
 
-  if (env.NODE_ENV !== 'test' && (isPlaceholder || env.MIDTRANS_SERVER_KEY.trim() === '' || env.MIDTRANS_CLIENT_KEY.trim() === '')) {
+  if (
+    env.NODE_ENV !== 'test' &&
+    (isPlaceholder ||
+      !diagnostics.serverKey.configured ||
+      !diagnostics.clientKey.configured)
+  ) {
     throw new Error('Midtrans payment configuration is missing or invalid');
   }
+}
+
+export function logMidtransConfigDiagnostics(): void {
+  const diagnostics = getMidtransConfigDiagnostics();
+  console.info('[Midtrans] configuration', {
+    environment: diagnostics.environment,
+    source: diagnostics.source,
+    loadedEnvFiles: diagnostics.loadedEnvFiles,
+    serverKey: diagnostics.serverKey,
+    clientKey: diagnostics.clientKey,
+  });
 }
 
 export default snap;

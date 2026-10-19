@@ -1,9 +1,11 @@
 import { app } from './app';
 import { env } from './config/env';
+import { logMidtransConfigDiagnostics } from './config/midtrans';
 
 const server = app.listen(env.PORT, () => {
   console.log(`🚀 POS Mavera Backend is running on http://localhost:${env.PORT}`);
   console.log(`📍 Environment: ${env.NODE_ENV}`);
+  logMidtransConfigDiagnostics();
   console.log(`🏥 Health Check: http://localhost:${env.PORT}/health`);
 });
 

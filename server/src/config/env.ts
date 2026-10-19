@@ -2,9 +2,22 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 import path from 'path';
 
-// Load .env from server directory or monorepo root
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+const hadProcessMidtransConfig =
+  typeof process.env.MIDTRANS_SERVER_KEY === 'string' ||
+  typeof process.env.MIDTRANS_CLIENT_KEY === 'string';
+
+const envFileCandidates = [
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(__dirname, '../../../.env'),
+  path.resolve(process.cwd(), '.env'),
+];
+
+const loadedEnvFiles = envFileCandidates.filter((envFile, index, candidates) => {
+  if (candidates.indexOf(envFile) !== index) {
+    return false;
+  }
+  return dotenv.config({ path: envFile }).parsed !== undefined;
+});
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -15,7 +28,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default('http://localhost:5173'),
   MIDTRANS_SERVER_KEY: z.string().default('SB-Mid-server-placeholder'),
   MIDTRANS_CLIENT_KEY: z.string().default('SB-Mid-client-placeholder'),
-  MIDTRANS_IS_PRODUCTION: z.coerce.boolean().default(false),
+  MIDTRANS_IS_PRODUCTION: z
+  .enum(["true", "false"])
+  .transform((value) => value === "true")
+  .default("false"),
   INITIAL_STAFF_EMAIL: z.string().email().default('staff@mavera.local'),
   INITIAL_STAFF_PASSWORD: z.string().default('StaffMavera123!'),
   INITIAL_ADMIN_EMAIL: z.string().email().default('admin@mavera.local'),
@@ -23,6 +39,30 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+export interface MidtransConfigDiagnostics {
+  environment: 'sandbox' | 'production';
+  serverKey: {
+    configured: boolean;
+    prefix: string;
+    length: number;
+  };
+  clientKey: {
+    configured: boolean;
+    prefix: string;
+    length: number;
+  };
+  loadedEnvFiles: string[];
+  source: 'environment' | 'dotenv' | 'default';
+}
+
+function keyDiagnostics(value: string): MidtransConfigDiagnostics['serverKey'] {
+  return {
+    configured: value.trim() !== '' && !value.toLowerCase().includes('placeholder'),
+    prefix: value.trim().slice(0, 12),
+    length: value.length,
+  };
+}
 
 export function validateEnv(): Env {
   const result = envSchema.safeParse(process.env);
@@ -52,3 +92,16 @@ export function validateEnv(): Env {
 }
 
 export const env = validateEnv();
+
+export function getMidtransConfigDiagnostics(): MidtransConfigDiagnostics {
+  const serverKey = keyDiagnostics(env.MIDTRANS_SERVER_KEY);
+  const clientKey = keyDiagnostics(env.MIDTRANS_CLIENT_KEY);
+  const hasDotenvValue = loadedEnvFiles.length > 0;
+  return {
+    environment: env.MIDTRANS_IS_PRODUCTION ? 'production' : 'sandbox',
+    serverKey,
+    clientKey,
+    loadedEnvFiles,
+    source: hadProcessMidtransConfig ? 'environment' : hasDotenvValue ? 'dotenv' : 'default',
+  };
+}

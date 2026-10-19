@@ -306,9 +306,10 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
       },
     });
 
-    vi.spyOn(snap, 'createTransaction').mockRejectedValueOnce(
-      new Error('Midtrans API connection timed out')
-    );
+    const authenticationError = Object.assign(new Error('Unauthorized transaction'), {
+      httpStatusCode: 401,
+    });
+    vi.spyOn(snap, 'createTransaction').mockRejectedValueOnce(authenticationError);
 
     const res = await request(app)
       .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
@@ -318,5 +319,68 @@ describe('Payment & Tracking API: POST /api/v1/orders/:orderCode/payment-attempt
     expect(res.status).toBe(502);
     expect(res.body.success).toBe(false);
     expect(res.body.error.code).toBe('PAYMENT_GATEWAY_ERROR');
+
+    const failedAttempt = await prisma.paymentAttempt.findUnique({
+      where: { gatewayOrderId: `${unpaidOrderCode}-3` },
+    });
+    expect(failedAttempt?.status).toBe(PaymentStatus.FAILED);
+    expect(failedAttempt?.expiresAt.getTime()).toBeLessThanOrEqual(Date.now());
+
+    vi.spyOn(snap, 'createTransaction').mockResolvedValueOnce({
+      token: 'snap-token-after-auth-failure',
+      redirect_url: 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token-after-auth-failure',
+    });
+    const retryResponse = await request(app)
+      .post(`/api/v1/orders/${unpaidOrderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', unpaidTrackingToken)
+      .send();
+
+    expect(retryResponse.status).toBe(201);
+    expect(retryResponse.body.data.gatewayOrderId).toBe(`${unpaidOrderCode}-4`);
+  });
+
+  it('should retain an ambiguous timeout as PENDING and block an unsafe duplicate retry', async () => {
+    const ambiguousTrackingToken = 'ambiguous-payment-tracking-token';
+    const ambiguousOrder = await prisma.order.create({
+      data: {
+        orderCode: `MVR-AMB-${Date.now().toString().slice(-6)}`,
+        trackingTokenHash: crypto.createHash('sha256').update(ambiguousTrackingToken).digest('hex'),
+        customerName: 'Ambiguous Gateway',
+        customerPhone: '081200000000',
+        orderType: OrderType.TAKEAWAY,
+        totalAmount: 0,
+        orderStatus: OrderStatus.PENDING_PAYMENT,
+        paymentStatus: PaymentStatus.PENDING,
+      },
+    });
+    createdOrderIds.push(ambiguousOrder.id);
+
+    vi.spyOn(snap, 'createTransaction').mockRejectedValueOnce(
+      new Error('Midtrans API request failed, likely connection failure')
+    );
+
+    const firstResponse = await request(app)
+      .post(`/api/v1/orders/${ambiguousOrder.orderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', ambiguousTrackingToken)
+      .send();
+
+    expect(firstResponse.status).toBe(502);
+    const attempts = await prisma.paymentAttempt.findMany({
+      where: { orderId: ambiguousOrder.id },
+    });
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].status).toBe(PaymentStatus.PENDING);
+    expect(attempts[0].gatewayTransactionStatus).toBe('creation_failed_ambiguous');
+
+    const retryResponse = await request(app)
+      .post(`/api/v1/orders/${ambiguousOrder.orderCode}/payment-attempts`)
+      .set('X-Order-Tracking-Token', ambiguousTrackingToken)
+      .send();
+
+    expect(retryResponse.status).toBe(502);
+    expect(retryResponse.body.error.code).toBe('PAYMENT_GATEWAY_ERROR');
+    await expect(
+      prisma.paymentAttempt.count({ where: { orderId: ambiguousOrder.id } })
+    ).resolves.toBe(1);
   });
 });

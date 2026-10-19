@@ -8,6 +8,20 @@ import { verifyTrackingToken } from '../utils/trackingToken';
 
 import { paymentService } from '../services/payment.service';
 
+interface MidtransGatewayError {
+  httpStatusCode?: number | null;
+  ApiResponse?: unknown;
+}
+
+function isDefinitiveGatewayFailure(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const statusCode = (error as MidtransGatewayError).httpStatusCode;
+  return statusCode === 400 || statusCode === 401 || statusCode === 403 || statusCode === 422;
+}
+
 export interface PaymentAttemptResponseData {
   paymentAttemptId: number;
   orderCode: string;
@@ -150,13 +164,22 @@ export class PaymentController {
         snapResponse = await snap.createTransaction(snapPayload);
       } catch (midtransError: unknown) {
         const message = midtransError instanceof Error ? midtransError.message : 'Unknown error';
+        const definitiveFailure = isDefinitiveGatewayFailure(midtransError);
         console.error(
           `[PaymentController] Midtrans snap.createTransaction failed for order ${order.orderCode} (${gatewayOrderId}):`,
-          message
+          message,
+          definitiveFailure ? 'definitive' : 'ambiguous'
         );
         await prisma.paymentAttempt.update({
           where: { id: reservedAttempt.id },
-          data: { gatewayTransactionStatus: 'creation_failed' },
+          data: {
+            gatewayTransactionStatus: definitiveFailure
+              ? 'creation_failed_definitive'
+              : 'creation_failed_ambiguous',
+            ...(definitiveFailure
+              ? { status: PaymentStatus.FAILED, expiresAt: new Date() }
+              : {}),
+          },
         });
         throw new AppError(
           502,
