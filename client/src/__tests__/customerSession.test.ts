@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   clearCustomerNameSession,
-  getCustomerName,
-  saveCustomerName,
+  getCustomerSession,
+  saveCustomerSession,
 } from '../services/customerSession';
 
 interface TestStorage {
@@ -27,7 +27,7 @@ function installStorage(): TestStorage {
   return storage;
 }
 
-describe('one-hour customer name session', () => {
+describe('one-hour customer session', () => {
   let storage: TestStorage;
 
   beforeEach(() => {
@@ -36,30 +36,45 @@ describe('one-hour customer name session', () => {
     clearCustomerNameSession();
   });
 
-  it('restores a name within one hour and keeps the original expiry when edited', () => {
-    saveCustomerName('Budi', 1_000);
-    saveCustomerName('Budi Santoso', 2_000);
+  it('restores name and phone within one hour and keeps the original expiry when edited', () => {
+    saveCustomerSession('Budi', '081234567890', 1_000);
+    saveCustomerSession('Budi Santoso', '089876543210', 2_000);
 
-    expect(getCustomerName(3_599_999)).toBe('Budi Santoso');
-    expect(getCustomerName(3_601_000)).toBeNull();
+    expect(getCustomerSession(3_599_999)).toMatchObject({
+      name: 'Budi Santoso',
+      phone: '089876543210',
+      createdAt: 1_000,
+      expiresAt: 3_601_000,
+    });
+    expect(getCustomerSession(3_601_000)).toBeNull();
   });
 
   it('does not extend expiry when the page is refreshed', () => {
-    saveCustomerName('Siti', 10_000);
+    saveCustomerSession('Siti', '081234567890', 10_000);
 
-    expect(getCustomerName(10_000 + 60 * 60 * 1000 - 1)).toBe('Siti');
-    expect(getCustomerName(10_000 + 60 * 60 * 1000)).toBeNull();
+    expect(getCustomerSession(10_000 + 60 * 60 * 1000 - 1)?.phone).toBe('081234567890');
+    expect(getCustomerSession(10_000 + 60 * 60 * 1000)).toBeNull();
+  });
+
+  it('updates either field without resetting the existing expiry', () => {
+    saveCustomerSession('Dewi', '081234567890', 30_000);
+    saveCustomerSession('Dewi', '089876543210', 31_000);
+
+    expect(getCustomerSession(30_000 + 60 * 60 * 1000 - 1)).toMatchObject({
+      name: 'Dewi',
+      phone: '089876543210',
+    });
   });
 
   it('clears malformed session data', () => {
-    storage.setItem('pos_mavera_customer_name_v1', '{"name":42}');
+    storage.setItem('pos_mavera_customer_name_v1', '{"name":"Budi"}');
 
-    expect(getCustomerName(1_000)).toBeNull();
+    expect(getCustomerSession(1_000)).toBeNull();
     expect(storage.getItem('pos_mavera_customer_name_v1')).toBeNull();
   });
 
   it('continues working with an in-memory fallback when storage is unavailable', () => {
-    saveCustomerName('Fallback', 20_000);
+    saveCustomerSession('Fallback', '081234567890', 20_000);
     Object.defineProperty(globalThis, 'sessionStorage', {
       configurable: true,
       value: {
@@ -75,6 +90,9 @@ describe('one-hour customer name session', () => {
       },
     });
 
-    expect(getCustomerName(20_001)).toBe('Fallback');
+    expect(getCustomerSession(20_001)).toMatchObject({
+      name: 'Fallback',
+      phone: '081234567890',
+    });
   });
 });

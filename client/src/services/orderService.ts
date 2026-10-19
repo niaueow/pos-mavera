@@ -38,19 +38,11 @@ export interface CheckoutValidationResult {
 }
 
 /**
- * Formats a raw Indonesian phone input (e.g. "81234567890" or "081234567890")
- * into a clean digits-only string with +62 or 08 prefix accepted by the backend.
+ * Formats phone input into the digits-only string accepted by checkout.
+ * The original digits, including leading zeros, are preserved.
  */
 export function normalizeCustomerPhone(rawPhone: string): string {
-  const digits = rawPhone.replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('62')) {
-    return `+${digits}`;
-  }
-  if (digits.startsWith('0')) {
-    return digits;
-  }
-  return `+62${digits}`;
+  return rawPhone.replace(/\D/g, '').slice(0, 14);
 }
 
 /**
@@ -69,8 +61,8 @@ export function validateCheckoutForm(input: CheckoutFormInput): CheckoutValidati
   const rawDigits = input.phoneNumber.replace(/\D/g, '');
   if (!rawDigits) {
     errors.phoneNumber = 'Nomor WhatsApp / HP wajib diisi';
-  } else if (rawDigits.length < 8 || rawDigits.length > 18) {
-    errors.phoneNumber = 'Nomor telepon harus terdiri dari 8–18 digit angka';
+  } else if (rawDigits.length < 8 || rawDigits.length > 14) {
+    errors.phoneNumber = 'Nomor telepon harus terdiri dari 8–14 digit angka';
   }
 
   if (input.orderType === 'DINE_IN') {

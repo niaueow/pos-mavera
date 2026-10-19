@@ -1,38 +1,42 @@
-const CUSTOMER_NAME_SESSION_KEY = 'pos_mavera_customer_name_v1';
+const CUSTOMER_SESSION_KEY = 'pos_mavera_customer_name_v1';
 const CUSTOMER_NAME_SESSION_DURATION_MS = 60 * 60 * 1000;
 
-interface CustomerNameSession {
+export interface CustomerSession {
   name: string;
+  phone: string;
   createdAt: number;
   expiresAt: number;
 }
 
-let customerNameFallback: CustomerNameSession | null = null;
+let customerSessionFallback: CustomerSession | null = null;
 
-function readStoredSession(): CustomerNameSession | null {
+function readStoredSession(): CustomerSession | null {
   let raw: string | null = null;
   try {
-    raw = sessionStorage.getItem(CUSTOMER_NAME_SESSION_KEY);
+    raw = sessionStorage.getItem(CUSTOMER_SESSION_KEY);
   } catch {
-    return customerNameFallback;
+    return customerSessionFallback;
   }
 
-  if (!raw) return customerNameFallback;
+  if (!raw) return customerSessionFallback;
 
   try {
     const parsed: unknown = JSON.parse(raw);
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
-      typeof (parsed as CustomerNameSession).name === 'string' &&
-      (parsed as CustomerNameSession).name.trim() !== '' &&
-      Number.isFinite((parsed as CustomerNameSession).createdAt) &&
-      Number.isFinite((parsed as CustomerNameSession).expiresAt)
+      typeof (parsed as CustomerSession).name === 'string' &&
+      typeof (parsed as CustomerSession).phone === 'string' &&
+      (parsed as CustomerSession).phone.length <= 14 &&
+      /^\d*$/.test((parsed as CustomerSession).phone) &&
+      Number.isFinite((parsed as CustomerSession).createdAt) &&
+      Number.isFinite((parsed as CustomerSession).expiresAt)
     ) {
       return {
-        name: (parsed as CustomerNameSession).name,
-        createdAt: (parsed as CustomerNameSession).createdAt,
-        expiresAt: (parsed as CustomerNameSession).expiresAt,
+        name: (parsed as CustomerSession).name,
+        phone: (parsed as CustomerSession).phone,
+        createdAt: (parsed as CustomerSession).createdAt,
+        expiresAt: (parsed as CustomerSession).expiresAt,
       };
     }
   } catch {
@@ -40,21 +44,21 @@ function readStoredSession(): CustomerNameSession | null {
   }
 
   try {
-    sessionStorage.removeItem(CUSTOMER_NAME_SESSION_KEY);
+    sessionStorage.removeItem(CUSTOMER_SESSION_KEY);
   } catch {
     // Ignore unavailable storage.
   }
-  customerNameFallback = null;
+  customerSessionFallback = null;
   return null;
 }
 
-function writeSession(value: CustomerNameSession | null): void {
-  customerNameFallback = value;
+function writeSession(value: CustomerSession | null): void {
+  customerSessionFallback = value;
   try {
     if (value) {
-      sessionStorage.setItem(CUSTOMER_NAME_SESSION_KEY, JSON.stringify(value));
+      sessionStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(value));
     } else {
-      sessionStorage.removeItem(CUSTOMER_NAME_SESSION_KEY);
+      sessionStorage.removeItem(CUSTOMER_SESSION_KEY);
     }
   } catch {
     // In-memory fallback remains available for this page session.
@@ -62,32 +66,39 @@ function writeSession(value: CustomerNameSession | null): void {
 }
 
 export function getCustomerName(now = Date.now()): string | null {
-  const stored = readStoredSession();
-  if (!stored) return null;
-  if (stored.expiresAt <= now || stored.createdAt > stored.expiresAt) {
+  return getCustomerSession(now)?.name ?? null;
+}
+
+export function getCustomerSession(now = Date.now()): CustomerSession | null {
+  const existing = readStoredSession();
+  if (!existing) return null;
+  if (existing.expiresAt <= now || existing.createdAt > existing.expiresAt) {
     writeSession(null);
     return null;
   }
-  return stored.name;
+  return existing;
+}
+
+export function saveCustomerSession(
+  name: string,
+  phone: string,
+  now = Date.now()
+): void {
+  const existing = getCustomerSession(now);
+  const session: CustomerSession = existing
+    ? { ...existing, name: name.trim(), phone: phone.replace(/\D/g, '').slice(0, 14) }
+    : {
+        name: name.trim(),
+        phone: phone.replace(/\D/g, '').slice(0, 14),
+        createdAt: now,
+        expiresAt: now + CUSTOMER_NAME_SESSION_DURATION_MS,
+      };
+  writeSession(session);
 }
 
 export function saveCustomerName(name: string, now = Date.now()): void {
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    writeSession(null);
-    return;
-  }
-
-  const existing = readStoredSession();
-  const session =
-    existing && existing.expiresAt > now && existing.createdAt <= existing.expiresAt
-      ? { ...existing, name: trimmedName }
-      : {
-          name: trimmedName,
-          createdAt: now,
-          expiresAt: now + CUSTOMER_NAME_SESSION_DURATION_MS,
-        };
-  writeSession(session);
+  const existing = getCustomerSession(now);
+  saveCustomerSession(name, existing?.phone ?? '', now);
 }
 
 export function clearCustomerNameSession(): void {

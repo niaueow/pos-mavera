@@ -25,7 +25,10 @@ import {
   createOrder,
 } from '../services/orderService';
 import { createPaymentAttempt } from '../services/paymentService';
-import { getCustomerName, saveCustomerName } from '../services/customerSession';
+import {
+  getCustomerSession,
+  saveCustomerSession,
+} from '../services/customerSession';
 import { useMidtransSnap } from '../hooks/useMidtransSnap';
 import { ApiClientError } from '../services/apiClient';
 
@@ -36,8 +39,12 @@ export const CartPage: React.FC = () => {
 
   const [orderType, setOrderType] = useState<OrderType>('DINE_IN');
   const [tableNumber, setTableNumber] = useState<number | null>(null);
-  const [customerName, setCustomerName] = useState(() => getCustomerName() ?? '');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [customerName, setCustomerName] = useState(
+    () => getCustomerSession()?.name ?? ''
+  );
+  const [phoneNumber, setPhoneNumber] = useState(
+    () => getCustomerSession()?.phone ?? ''
+  );
   const [orderNotes, setOrderNotes] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -311,7 +318,7 @@ export const CartPage: React.FC = () => {
                 type="button"
                 onClick={handlePayPendingOrder}
                 disabled={isRetryingPayment}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-ink text-surface text-xs font-bold flex items-center justify-center gap-2 hover:bg-ink/90 active:scale-98 transition-smooth disabled:opacity-50"
+                className="flex-1 py-2.5 px-4 rounded-lg bg-ink text-surface text-xs font-bold flex items-center justify-center gap-2 hover:bg-ink/90 active:scale-98 transition-smooth disabled:opacity-50"
               >
                 {isRetryingPayment ? (
                   <>
@@ -321,13 +328,13 @@ export const CartPage: React.FC = () => {
                 ) : (
                   <>
                     <CreditCard className="w-3.5 h-3.5" />
-                    <span>Bayar Sekarang via Midtrans</span>
+                    <span>Bayar Sekarang</span>
                   </>
                 )}
               </button>
               <Link
                 to={`/tracking/${pendingOrderInfo.orderCode}`}
-                className="py-2.5 px-4 rounded-xl bg-surface border border-border text-ink text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-muted transition-smooth"
+                className="py-2.5 px-4 rounded-lg bg-surface border border-border text-ink text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-surface-muted transition-smooth"
               >
                 <span>Lihat Status Pesanan</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -352,7 +359,7 @@ export const CartPage: React.FC = () => {
               <p className="text-xs text-ink-muted">Pilih menu terlebih dahulu.</p>
               <Link
                 to="/"
-                className="inline-flex items-center gap-1.5 mt-2 px-4 py-2 rounded-xl bg-brand text-ink text-xs font-bold"
+                className="inline-flex items-center gap-1.5 mt-2 px-4 py-2 rounded-lg bg-brand text-ink text-xs font-bold"
               >
                 <ArrowLeft className="w-3.5 h-3.5" /> Lihat Katalog
               </Link>
@@ -457,7 +464,7 @@ export const CartPage: React.FC = () => {
                         type="button"
                         onClick={() => handleOrderTypeChange(key)}
                         data-testid={`order-type-${key}`}
-                        className={`py-2.5 px-3 rounded-xl text-center transition-smooth ${
+                        className={`py-2.5 px-3 rounded-lg text-center transition-smooth ${
                           active
                             ? 'bg-brand text-ink font-bold shadow-sm'
                             : 'text-ink-muted hover:bg-surface'
@@ -497,7 +504,7 @@ export const CartPage: React.FC = () => {
                           type="button"
                           onClick={() => handleTableNumberChange(num)}
                           aria-label={`Pilih Meja ${num}`}
-                          className={`py-2 rounded-xl text-xs font-bold border transition-smooth ${
+                          className={`py-2 rounded-lg text-xs font-bold border transition-smooth ${
                             isSelected
                               ? 'bg-brand border-brand text-ink shadow-sm'
                               : 'bg-surface-muted border-border text-ink-muted hover:text-ink hover:border-ink/30'
@@ -537,12 +544,12 @@ export const CartPage: React.FC = () => {
                   onChange={(e) => {
                     const value = e.target.value;
                     setCustomerName(value);
-                    saveCustomerName(value);
+                    saveCustomerSession(value, phoneNumber);
                     setFieldErrors((prev) => ({ ...prev, customerName: undefined }));
                   }}
                   placeholder="Contoh: Budi"
                   maxLength={100}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-sm text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface border border-border text-sm text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
                 />
                 {fieldErrors.customerName && (
                   <p className="text-xs text-danger font-medium">{fieldErrors.customerName}</p>
@@ -554,23 +561,21 @@ export const CartPage: React.FC = () => {
                 <label htmlFor="customer-phone" className="block text-xs font-semibold text-ink">
                   Nomor WhatsApp / HP <span className="text-danger">*</span>
                 </label>
-                <div className="flex">
-                  <span className="flex items-center px-3 border border-r-0 border-border rounded-l-xl bg-surface-muted text-sm font-semibold text-ink-muted select-none">
-                    +62
-                  </span>
-                  <input
-                    id="customer-phone"
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      setPhoneNumber(e.target.value.replace(/\D/g, ''));
-                      setFieldErrors((prev) => ({ ...prev, phoneNumber: undefined }));
-                    }}
-                    placeholder="812 3456 7890"
-                    maxLength={18}
-                    className="flex-1 px-3.5 py-2.5 rounded-r-xl bg-surface border border-border text-sm text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
-                  />
-                </div>
+                <input
+                  id="customer-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 14);
+                    setPhoneNumber(value);
+                    saveCustomerSession(customerName, value);
+                    setFieldErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                  }}
+                  placeholder="081234567890"
+                  maxLength={14}
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface border border-border text-sm text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
+                />
                 {fieldErrors.phoneNumber && (
                   <p className="text-xs text-danger font-medium">{fieldErrors.phoneNumber}</p>
                 )}
@@ -588,7 +593,7 @@ export const CartPage: React.FC = () => {
                   onChange={(e) => setOrderNotes(e.target.value.slice(0, 255))}
                   placeholder="Contoh: Minta sendok plastik / sambal dipisah"
                   maxLength={255}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-sm text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-surface border border-border text-sm text-ink placeholder:text-ink-light focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition-smooth"
                 />
               </div>
             </div>
@@ -608,9 +613,6 @@ export const CartPage: React.FC = () => {
                   <span className="text-lg font-extrabold text-ink block">
                     {formatIDR(subtotalAmount)}
                   </span>
-                  <span className="text-[10px] text-ink-muted">
-                    Harga sudah final, dihitung ulang oleh server.
-                  </span>
                 </div>
               </div>
             </div>
@@ -627,7 +629,7 @@ export const CartPage: React.FC = () => {
               onClick={() => handleCheckoutSubmit()}
               disabled={!validation.isValid || isSubmitting}
               data-testid="submit-checkout-button"
-              className={`w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-smooth ${
+              className={`w-full py-3.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-smooth ${
                 validation.isValid && !isSubmitting
                   ? 'bg-ink text-surface hover:bg-ink/90 active:scale-[0.98]'
                   : 'bg-surface-muted text-ink-muted border border-border cursor-not-allowed'

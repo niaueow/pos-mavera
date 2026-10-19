@@ -128,13 +128,44 @@ describe('Milestone 4 — Customer Checkout Validation & API Integration', () =>
 
     expect(payload.order_type).toBe('TAKEAWAY');
     expect(payload.table_number).toBeNull();
-    expect(payload.customer_phone).toBe('+6281298765432');
+    expect(payload.customer_phone).toBe('81298765432');
+  });
+
+  it('accepts digits only, preserves leading zeros, and limits phone input to 14 digits', () => {
+    const valid = validateCheckoutForm({
+      customerName: 'Budi Santoso',
+      phoneNumber: '081234567890',
+      orderType: 'TAKEAWAY',
+      tableNumber: null,
+      items: sampleCartItems,
+    });
+    expect(valid.errors.phoneNumber).toBeUndefined();
+
+    const tooLong = validateCheckoutForm({
+      customerName: 'Budi Santoso',
+      phoneNumber: '08123456789012345',
+      orderType: 'TAKEAWAY',
+      tableNumber: null,
+      items: sampleCartItems,
+    });
+    expect(tooLong.errors.phoneNumber).toBe('Nomor telepon harus terdiri dari 8–14 digit angka');
+
+    expect(
+      buildCreateOrderPayload({
+        customerName: 'Budi Santoso',
+        phoneNumber: '081234567890',
+        orderType: 'TAKEAWAY',
+        tableNumber: null,
+        items: sampleCartItems,
+      }).customer_phone
+    ).toBe('081234567890');
   });
 
   it('normalizes Indonesian phone numbers accurately', () => {
-    expect(normalizeCustomerPhone('812 3456 7890')).toBe('+6281234567890');
+    expect(normalizeCustomerPhone('812 3456 7890')).toBe('81234567890');
     expect(normalizeCustomerPhone('081234567890')).toBe('081234567890');
-    expect(normalizeCustomerPhone('6281234567890')).toBe('+6281234567890');
+    expect(normalizeCustomerPhone('abc081234567890xyz')).toBe('081234567890');
+    expect(normalizeCustomerPhone('08123456789012345')).toBe('08123456789012');
   });
 
   it('calls POST /orders with authoritative payload and returns created order with tracking_token', async () => {

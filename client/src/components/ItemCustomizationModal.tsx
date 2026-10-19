@@ -38,7 +38,7 @@ export const ItemCustomizationModal: React.FC<ItemCustomizationModalProps> = ({
   useEffect(() => {
     if (item) {
       setQuantity(1);
-      setSpiceLevel(1);
+      setSpiceLevel(0);
       setNotes('');
     }
   }, [item, isOpen]);
@@ -75,12 +75,11 @@ export const ItemCustomizationModal: React.FC<ItemCustomizationModalProps> = ({
         aria-labelledby="modal-title"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-surface">
+        <div className="flex items-center justify-between p-4 bg-surface">
           <div>
-            <h2 id="modal-title" className="text-base sm:text-lg font-regular text-ink-muted py-2">
+            <h2 id="modal-title" className="text-base sm:text-lg font-bold text-ink ">
               {item.name}
             </h2>
-            <span className="text-base font-bold text-ink">{formatIDR(item.price)}</span>
           </div>
           <button
             onClick={onClose}
@@ -166,7 +165,7 @@ export const ItemCustomizationModal: React.FC<ItemCustomizationModalProps> = ({
           </div>
 
           {/* Quantity Selector */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-ink">Jumlah Pesanan</span>
             <div className="flex items-center gap-3">
               <button
@@ -201,7 +200,7 @@ export const ItemCustomizationModal: React.FC<ItemCustomizationModalProps> = ({
         </div>
 
         {/* Modal Action Footer */}
-        <div className="p-4 border-t border-border bg-surface flex items-center justify-between gap-3">
+        <div className="p-4 bg-surface flex items-center justify-between gap-3">
           <div>
             <span className="block text-[11px] text-ink-muted">Subtotal Item</span>
             <span className="text-base font-extrabold text-ink">

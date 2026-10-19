@@ -11,18 +11,6 @@ interface MenuCardProps {
 export const MenuCard: React.FC<MenuCardProps> = ({ item, onSelect }) => {
   const isAvailable = item.is_available ?? item.available ?? true;
 
-  const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'ayam geprek':
-        return '🍗';
-      case 'minuman':
-        return '🥤';
-      case 'ala carte':
-        return '🍳';
-      default:
-        return '🍽️';
-    }
-  };
 
   return (
     <div
@@ -32,9 +20,9 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onSelect }) => {
     >
       <div>
         {/* Header: Category Badge & Availability Tag */}
-        <div className="flex items-center justify-between gap-2 mb-2">
+        
+        {/* <div className="flex items-center justify-between gap-2 mb-2">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-muted text-ink-muted text-[11px] font-medium border border-border">
-            <span>{getCategoryIcon(item.category)}</span>
             <span>{item.category}</span>
           </span>
 
@@ -48,10 +36,10 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onSelect }) => {
               <span>Pedas 1–5</span>
             </span>
           ) : null}
-        </div>
+        </div> */ }
 
         {/* Image / Placeholder Banner */}
-        <div className="relative w-full h-32 mb-3 rounded-lg overflow-hidden bg-brand-subtle flex items-center justify-center border border-border/60">
+        <div className="relative w-full h-52 mb-3 rounded-lg overflow-hidden bg-brand-subtle flex items-center justify-center border border-border/60">
           {item.image_url || item.photo_url ? (
             <img
               src={item.image_url || item.photo_url || ''}
@@ -61,7 +49,6 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onSelect }) => {
             />
           ) : (
             <div className="flex flex-col items-center justify-center text-ink-muted">
-              <span className="text-3xl mb-1">{getCategoryIcon(item.category)}</span>
               <span className="text-[11px] font-medium text-ink-light flex items-center gap-1">
                 <Utensils className="w-3 h-3" /> Mavera Rasa Juara
               </span>
@@ -83,9 +70,8 @@ export const MenuCard: React.FC<MenuCardProps> = ({ item, onSelect }) => {
       </div>
 
       {/* Footer: Price & Add Action */}
-      <div className="mt-3 pt-3 border-t border-border/80 flex items-center justify-between gap-2">
+      <div className="mt-3 flex items-center justify-between gap-2">
         <div>
-          <span className="block text-[11px] text-ink-light">Harga</span>
           <span className="text-sm sm:text-base font-bold text-ink">
             {formatIDR(item.price)}
           </span>
